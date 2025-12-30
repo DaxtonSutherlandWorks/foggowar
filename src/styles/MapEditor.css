@@ -1,0 +1,15 @@
+.map-canvas {
+    height: 350px;
+    background-color: rgba(255, 134, 134, 0.5);
+    z-index: 1;
+    position: absolute;
+}
+
+.dot-svg {
+    position: absolute;
+    z-index: 2;
+}
+
+.dot-svg:hover {
+    scale: 1.1;
+}

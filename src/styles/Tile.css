@@ -1,0 +1,10 @@
+.tile {
+    width: 70px;
+    height: 70px;
+    border: solid 1px black;
+    user-select: none;
+}
+
+.tile:hover {
+    background-color: rgb(177, 177, 177);
+}
