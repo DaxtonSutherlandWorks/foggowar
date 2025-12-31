@@ -1,13 +1,12 @@
-.map-canvas {
+.bg-canvas {
     background-color: rgba(255, 134, 134, 0.5);
     position: absolute;
+    pointer-events: none;
+    
 }
 
-.dot-svg {
+.overlay-canvas {
+    background-color: rgba(255, 134, 134, 0.5);
     position: absolute;
-    z-index: 2;
-}
-
-.dot-svg:hover {
-    scale: 1.1;
+    
 }
