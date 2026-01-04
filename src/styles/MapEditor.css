@@ -1,12 +1,16 @@
 .bg-canvas {
-    background-color: rgba(255, 134, 134, 0.5);
     position: absolute;
     pointer-events: none;
-    
+    z-index: 1;
+}
+
+.guide-canvas {
+    position: absolute;
+    pointer-events: none;
+    z-index: 2;
 }
 
 .overlay-canvas {
-    background-color: rgba(255, 134, 134, 0.5);
     position: absolute;
-    
+    z-index: 3;
 }
