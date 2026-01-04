@@ -27,10 +27,10 @@ class MapEditor extends React.Component {
         this.startX = 0;
         this.startY = 0;
 
-        this.tileSize = 72;
+        this.tileSize = 70;
         this.guideRadius = 2;
         this.guideHoverRadius = 6;
-        this.snapDistance = 12;
+        this.snapDistance = 18;
 
         //Methods must be bound to "this" in order to access "this'" properties
         this.onMouseDown = this.onMouseDown.bind(this);
@@ -52,14 +52,14 @@ class MapEditor extends React.Component {
         this.overlayContext = this.overlayCanvasRef.current.getContext('2d');
 
         //Canvas sizing dynamic to grid size, done here to prevent scaling issues
-        this.bgCanvasRef.current.width = this.state.dimensions[1] * 72;
-        this.bgCanvasRef.current.height = this.state.dimensions[0] * 72;
+        this.bgCanvasRef.current.width = this.state.dimensions[1] * this.tileSize;
+        this.bgCanvasRef.current.height = this.state.dimensions[0] * this.tileSize;
 
-        this.guideCanvasRef.current.width = this.state.dimensions[1] * 72;
-        this.guideCanvasRef.current.height = this.state.dimensions[0] * 72;
+        this.guideCanvasRef.current.width = this.state.dimensions[1] * this.tileSize;
+        this.guideCanvasRef.current.height = this.state.dimensions[0] * this.tileSize;
 
-        this.overlayCanvasRef.current.width = this.state.dimensions[1] * 72;
-        this.overlayCanvasRef.current.height = this.state.dimensions[0] * 72;
+        this.overlayCanvasRef.current.width = this.state.dimensions[1] * this.tileSize;
+        this.overlayCanvasRef.current.height = this.state.dimensions[0] * this.tileSize;
 
         /***********************************************************************
         * 
@@ -89,25 +89,38 @@ class MapEditor extends React.Component {
             switch (this.paintMode)
             {
                 case "line":
+
+                    //Checks whether the cursor is in range of a guide point
+                    let guidePoint = this.nearestGuidePoint(event.offsetX, event.offsetY)
+
                     //First click of stroke
                     if (!this.painting)
                     {
-                        this.painting = true;
-                        this.startX = event.offsetX;
-                        this.startY = event.offsetY;
+                        //If in range of a guide point, snaps to it
+                        if (guidePoint)
+                        {
+                            this.painting = true;
+                            this.startX = guidePoint.x;
+                            this.startY = guidePoint.y;
+                        }
+                        
                     }
 
                     //Terminate stroke
                     else
                     {
-                        this.bgContext.beginPath();
-                        this.bgContext.moveTo(this.startX, this.startY);
-                        this.bgContext.lineTo(event.offsetX, event.offsetY);
-                        this.bgContext.lineWidth = this.brushSize;
-                        this.bgContext.stroke();
+                        //Only terminates in range of guide point, snaps to it
+                        if (guidePoint)
+                        {
+                            this.bgContext.beginPath();
+                            this.bgContext.moveTo(this.startX, this.startY);
+                            this.bgContext.lineTo(guidePoint.x, guidePoint.y);
+                            this.bgContext.lineWidth = this.brushSize;
+                            this.bgContext.stroke();
 
-                        this.painting = false;
-                        this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
+                            this.painting = false;
+                            this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
+                        }
                     }
                     break;
                 
@@ -133,8 +146,8 @@ class MapEditor extends React.Component {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        const guide = this.nearestGuidePoint(x, y);
-        this.drawHoverGuide(this.overlayContext, guide);
+        const guidePoint = this.nearestGuidePoint(x, y);
+        this.drawHoverGuide(this.overlayContext, guidePoint);
 
          switch (this.paintMode)
             {
@@ -150,6 +163,17 @@ class MapEditor extends React.Component {
                     this.overlayContext.moveTo(this.startX, this.startY);
                     this.overlayContext.lineTo(event.offsetX, event.offsetY);
                     this.overlayContext.lineWidth = this.brushSize;
+
+                    //Changes preview line color based on if it has a valid placement
+                    if(!guidePoint)
+                    {
+                        this.overlayContext.strokeStyle = "red"
+                    }
+                    else
+                    {
+                        this.overlayContext.strokeStyle = this.brushColor;
+                    }
+
                     this.overlayContext.stroke();
                     break;
                 
@@ -159,7 +183,7 @@ class MapEditor extends React.Component {
     }
 
     /**
-     * Draws the guide dots along with TODO: the grid
+     * Draws the guide dots along with the grid
      */
     drawStaticGuides() {
         
@@ -171,13 +195,37 @@ class MapEditor extends React.Component {
         const cols = Math.ceil(width / this.tileSize);
         const rows = Math.ceil(height / this.tileSize);
 
-        //This loop draws dots for each tile
+        //This loop draws dots for each tile and gridlines
         for (let i = 0; i <= cols; i++)
         {
+            //Draws a gridline for this column
+            context.beginPath();
+            context.moveTo(i * this.tileSize, 0);
+            context.lineTo(i * this.tileSize, context.canvas.height);
+            context.lineWidth = 1;
+            context.strokeStyle = "#7a7a7aff";
+            context.stroke();
+            
             for (let j = 0; j <= rows; j++)
             {
                 const x = i * this.tileSize;
                 const y = j * this.tileSize;
+
+                //Draws a gridline for this row once
+                if (i === 0)
+                {
+                    context.beginPath();
+                    context.moveTo(0, j * this.tileSize);
+                    context.lineTo(context.canvas.width, j * this.tileSize);
+                    context.lineWidth = 1;
+                    context.strokeStyle = "#7a7a7aff";
+                    context.stroke();
+                }
+
+                else
+                {
+                    
+                }
 
                 //Corners
                 this.drawDot(context, x, y, this.guideRadius);
@@ -277,7 +325,7 @@ class MapEditor extends React.Component {
      ***********************************************************************/
     render () {
         return ( 
-            <div style={{border: "solid 5px black", width: this.state.dimensions[1] * 72, height: this.state.dimensions[0] * 72}}>
+            <div style={{border: "solid 5px black", width: this.state.dimensions[1] * this.tileSize, height: this.state.dimensions[0] * this.tileSize}}>
                 <canvas ref={this.overlayCanvasRef} className="overlay-canvas"></canvas>
                 <canvas ref={this.guideCanvasRef} className="guide-canvas"></canvas>
                 <canvas ref={this.bgCanvasRef} className="bg-canvas"></canvas>

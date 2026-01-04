@@ -2,6 +2,7 @@
     position: absolute;
     pointer-events: none;
     z-index: 1;
+    background-color: #ffebcd;
 }
 
 .guide-canvas {
