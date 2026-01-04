@@ -2,6 +2,7 @@ import React from "react";
 import "../styles/MapEditor.css"
 import TileMap from "./TileMap";
 
+//Set up as class in order to access React.createRef
 class MapEditor extends React.Component {
 
     //TODO: Make this dynamic based on user input
@@ -9,6 +10,7 @@ class MapEditor extends React.Component {
         dimensions: [10,10]
     }
 
+    
     //Sets up canvas references and initial brush settings
     constructor(props) {
         super(props);
@@ -23,6 +25,11 @@ class MapEditor extends React.Component {
 
         this.startX = 0;
         this.startY = 0;
+
+        //Methods must be bound to "this" in order to access "this'" properties
+        this.onMouseDown = this.onMouseDown.bind(this)
+        this.onMouseUp = this.onMouseUp.bind(this)
+        this.onMouseMove = this.onMouseMove.bind(this)
     }
 
     /**
@@ -47,15 +54,26 @@ class MapEditor extends React.Component {
         * 
         ************************************************************************/
        
-       /**
-        * Overlay mouse click listener
-        */
-        this.overlayCanvasRef.current.addEventListener('mousedown', (event) => {
-         
+       //Listeners are made as class methods so they can be removed before being applied
+       //This prevents the confusing and breaking behavior of listeners getting duplicated on a rerender.
+       this.overlayCanvasRef.current.removeEventListener('mousedown', this.onMouseDown);
+       this.overlayCanvasRef.current.addEventListener('mousedown', this.onMouseDown);
+       
+       this.overlayCanvasRef.current.removeEventListener('mouseup', this.onMouseUp);
+       this.overlayCanvasRef.current.addEventListener('mouseup', this.onMouseUp);
+
+       this.overlayCanvasRef.current.removeEventListener('mousemove', this.onMouseMove);
+       this.overlayCanvasRef.current.addEventListener('mousemove', this.onMouseMove);
+    }
+
+    /**
+    * Overlay mouse click listener
+    */
+    onMouseDown(event) {
+
             switch (this.paintMode)
             {
                 case "line":
-
                     //First click of stroke
                     if (!this.painting)
                     {
@@ -81,23 +99,21 @@ class MapEditor extends React.Component {
                 default:
                     return;
             }
-            
+    }
 
-       })
+    /**
+    * Overlay mouse release listener
+    */
+    onMouseUp(event) {
 
-       /**
-        * Overlay mouse release listener
-        */
-       this.overlayCanvasRef.current.addEventListener('mouseup', (event) => {
-        
-       })
+    }
 
-       /**
-        * Overlay mouse movement listener
-        */
-       this.overlayCanvasRef.current.addEventListener('mousemove', (event) => {
-        
-            switch (this.paintMode)
+    /**
+    * Overlay mouse movement listener
+    */
+    onMouseMove(event) {
+
+         switch (this.paintMode)
             {
                 case "line":
 
@@ -120,9 +136,6 @@ class MapEditor extends React.Component {
                 default:
                     return;
             }
-            
-
-       })
     }
 
     /***********************************************************************
