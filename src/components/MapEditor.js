@@ -79,12 +79,12 @@ class MapEditor extends React.Component {
     */
     onMouseDown(event) {
 
+            //Checks whether the cursor is in range of a guide point
+            let guidePoint = this.nearestGuidePoint(event.offsetX, event.offsetY)
+
             switch (this.props.paintMode)
             {
                 case "line":
-
-                    //Checks whether the cursor is in range of a guide point
-                    let guidePoint = this.nearestGuidePoint(event.offsetX, event.offsetY)
 
                     //First click of stroke
                     if (!this.painting)
@@ -108,6 +108,38 @@ class MapEditor extends React.Component {
                             this.bgContext.beginPath();
                             this.bgContext.moveTo(this.startX, this.startY);
                             this.bgContext.lineTo(guidePoint.x, guidePoint.y);
+                            this.bgContext.lineWidth = this.brushSize;
+                            this.bgContext.stroke();
+
+                            this.painting = false;
+                            this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
+                        }
+                    }
+                    break;
+
+                case "square":
+                    
+                    //First click of stroke
+                    if (!this.painting)
+                    {
+                        //If in range of a guide point, snaps to it
+                        if (guidePoint)
+                        {
+                            this.painting = true;
+                            this.startX = guidePoint.x;
+                            this.startY = guidePoint.y;
+                        }
+                        
+                    }
+
+                    //Terminate stroke
+                    else
+                    {
+                        //Only terminates in range of guide point, snaps to it
+                        if (guidePoint)
+                        {
+                            this.bgContext.beginPath();
+                            this.bgContext.rect(this.startX, this.startY, guidePoint.x - this.startX, guidePoint.y - this.startY);
                             this.bgContext.lineWidth = this.brushSize;
                             this.bgContext.stroke();
 
@@ -155,6 +187,31 @@ class MapEditor extends React.Component {
                     this.overlayContext.beginPath();
                     this.overlayContext.moveTo(this.startX, this.startY);
                     this.overlayContext.lineTo(event.offsetX, event.offsetY);
+                    this.overlayContext.lineWidth = this.brushSize;
+
+                    //Changes preview line color based on if it has a valid placement
+                    if(!guidePoint)
+                    {
+                        this.overlayContext.strokeStyle = "red"
+                    }
+                    else
+                    {
+                        this.overlayContext.strokeStyle = this.brushColor;
+                    }
+
+                    this.overlayContext.stroke();
+                    break;
+
+                case "square":
+
+                    //Ignore movements unless painting
+                    if (!this.painting)
+                    {
+                        return;
+                    }
+
+                    this.overlayContext.beginPath();
+                    this.overlayContext.rect(this.startX, this.startY, event.offsetX - this.startX, event.offsetY - this.startY);
                     this.overlayContext.lineWidth = this.brushSize;
 
                     //Changes preview line color based on if it has a valid placement
