@@ -148,6 +148,38 @@ class MapEditor extends React.Component {
                         }
                     }
                     break;
+
+                case "circle":
+                    
+                    //First click of stroke
+                    if (!this.painting)
+                    {
+                        //If in range of a guide point, snaps to it
+                        if (guidePoint)
+                        {
+                            this.painting = true;
+                            this.startX = guidePoint.x;
+                            this.startY = guidePoint.y;
+                        }
+                        
+                    }
+
+                    //Terminate stroke
+                    else
+                    {
+                        //Only terminates in range of guide point, snaps to it
+                        if (guidePoint)
+                        {
+                            this.bgContext.beginPath();
+                            this.bgContext.arc(this.startX, this.startY, Math.abs(guidePoint.x - this.startX), 0, 2 * Math.PI);
+                            this.bgContext.lineWidth = this.brushSize;
+                            this.bgContext.stroke();
+
+                            this.painting = false;
+                            this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
+                        }
+                    }
+                    break;
                 
                 default:
                     return;
@@ -212,6 +244,31 @@ class MapEditor extends React.Component {
 
                     this.overlayContext.beginPath();
                     this.overlayContext.rect(this.startX, this.startY, event.offsetX - this.startX, event.offsetY - this.startY);
+                    this.overlayContext.lineWidth = this.brushSize;
+
+                    //Changes preview line color based on if it has a valid placement
+                    if(!guidePoint)
+                    {
+                        this.overlayContext.strokeStyle = "red"
+                    }
+                    else
+                    {
+                        this.overlayContext.strokeStyle = this.brushColor;
+                    }
+
+                    this.overlayContext.stroke();
+                    break;
+
+                case "circle":
+
+                    //Ignore movements unless painting
+                    if (!this.painting)
+                    {
+                        return;
+                    }
+
+                    this.overlayContext.beginPath();
+                    this.overlayContext.arc(this.startX, this.startY, Math.abs(event.offsetX - this.startX), 0, 2 * Math.PI);
                     this.overlayContext.lineWidth = this.brushSize;
 
                     //Changes preview line color based on if it has a valid placement
