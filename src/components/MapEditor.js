@@ -4,12 +4,6 @@ import TileMap from "./TileMap";
 
 //Set up as class in order to access React.createRef
 class MapEditor extends React.Component {
-
-    //TODO: Make this dynamic based on user input
-    state = {
-        dimensions: [10,10]
-    }
-
     
     //Sets up canvas references and initial brush settings
     constructor(props) {
@@ -22,7 +16,6 @@ class MapEditor extends React.Component {
         this.brushSize = 3;
 
         this.painting = false;
-        this.paintMode = "line";
 
         this.startX = 0;
         this.startY = 0;
@@ -52,14 +45,14 @@ class MapEditor extends React.Component {
         this.overlayContext = this.overlayCanvasRef.current.getContext('2d');
 
         //Canvas sizing dynamic to grid size, done here to prevent scaling issues
-        this.bgCanvasRef.current.width = this.state.dimensions[1] * this.tileSize;
-        this.bgCanvasRef.current.height = this.state.dimensions[0] * this.tileSize;
+        this.bgCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
+        this.bgCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
 
-        this.guideCanvasRef.current.width = this.state.dimensions[1] * this.tileSize;
-        this.guideCanvasRef.current.height = this.state.dimensions[0] * this.tileSize;
+        this.guideCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
+        this.guideCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
 
-        this.overlayCanvasRef.current.width = this.state.dimensions[1] * this.tileSize;
-        this.overlayCanvasRef.current.height = this.state.dimensions[0] * this.tileSize;
+        this.overlayCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
+        this.overlayCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
 
         /***********************************************************************
         * 
@@ -86,7 +79,7 @@ class MapEditor extends React.Component {
     */
     onMouseDown(event) {
 
-            switch (this.paintMode)
+            switch (this.props.paintMode)
             {
                 case "line":
 
@@ -149,7 +142,7 @@ class MapEditor extends React.Component {
         const guidePoint = this.nearestGuidePoint(x, y);
         this.drawHoverGuide(this.overlayContext, guidePoint);
 
-         switch (this.paintMode)
+         switch (this.props.paintMode)
             {
                 case "line":
 
@@ -329,7 +322,7 @@ class MapEditor extends React.Component {
      ***********************************************************************/
     render () {
         return ( 
-            <div style={{border: "solid 5px black", width: this.state.dimensions[1] * this.tileSize, height: this.state.dimensions[0] * this.tileSize}}>
+            <div style={{border: "solid 5px black", width: this.props.dimensions[1] * this.tileSize, height: this.props.dimensions[0] * this.tileSize}}>
                 <canvas ref={this.overlayCanvasRef} className="overlay-canvas"></canvas>
                 <canvas ref={this.guideCanvasRef} className="guide-canvas"></canvas>
                 <canvas ref={this.bgCanvasRef} className="bg-canvas"></canvas>
