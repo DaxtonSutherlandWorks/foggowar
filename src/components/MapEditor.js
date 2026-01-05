@@ -30,7 +30,7 @@ class MapEditor extends React.Component {
         this.tileSize = 70;
         this.guideRadius = 2;
         this.guideHoverRadius = 6;
-        this.snapDistance = 18;
+        this.snapDistance = 12;
 
         //Methods must be bound to "this" in order to access "this'" properties
         this.onMouseDown = this.onMouseDown.bind(this);
@@ -222,15 +222,10 @@ class MapEditor extends React.Component {
                     context.stroke();
                 }
 
-                else
-                {
-                    
-                }
-
                 //Corners
                 this.drawDot(context, x, y, this.guideRadius);
 
-                //Midpoints
+                //Line Midpoints
                 if (x + this.tileSize <= width)
                 {
                     this.drawDot(context, x + (this.tileSize / 2), y, this.guideRadius)
@@ -239,6 +234,9 @@ class MapEditor extends React.Component {
                 {
                     this.drawDot(context, x, y + (this.tileSize / 2), this.guideRadius)
                 }
+
+                //Center Point
+                this.drawDot(context, x + (this.tileSize / 2), y + (this.tileSize / 2), this.guideRadius)
             }
         }
     }
@@ -272,7 +270,13 @@ class MapEditor extends React.Component {
 
             //Vertical midpoints
             { x: gx, y: gy + (this.tileSize / 2)},
-            { x: gx, y: gy - (this.tileSize / 2)}
+            { x: gx, y: gy - (this.tileSize / 2)},
+
+            //Tile midpoints
+            {x: gx + (this.tileSize / 2), y: gy + (this.tileSize / 2)},
+            {x: gx - (this.tileSize / 2), y: gy + (this.tileSize / 2)},
+            {x: gx + (this.tileSize / 2), y: gy - (this.tileSize / 2)},
+            {x: gx - (this.tileSize / 2), y: gy - (this.tileSize / 2)},
         ];
 
         let closest = null;
