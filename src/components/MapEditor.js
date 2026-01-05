@@ -9,8 +9,11 @@ class MapEditor extends React.Component {
     constructor(props) {
         super(props);
         this.bgCanvasRef = React.createRef();
-        this.guideCanvasRef = React.createRef();
+        this.dotCanvasRef = React.createRef();
+        this.gridCanvasRef = React.createRef();
+        this.borderCanvasRef = React.createRef();
         this.overlayCanvasRef = React.createRef();
+        this.solidCanvasRef = React.createRef();
 
         this.brushColor = '#000000';
         this.brushSize = 3;
@@ -32,6 +35,11 @@ class MapEditor extends React.Component {
         this.drawStaticGuides = this.drawStaticGuides.bind(this);
         this.nearestGuidePoint = this.nearestGuidePoint.bind(this);
         this.drawHoverGuide = this.drawHoverGuide.bind(this);
+        this.clearCircle = this.clearCircle.bind(this);
+        this.applyCircleBrush = this.applyCircleBrush.bind(this);
+        this.captureAlpha = this.captureAlpha.bind(this);
+        this.findNewEdges = this.findNewEdges.bind(this);
+        this.drawEdgeDots = this.drawEdgeDots.bind(this);
     }
 
     /**
@@ -41,19 +49,36 @@ class MapEditor extends React.Component {
 
         //Canvas Contexts
         this.bgContext = this.bgCanvasRef.current.getContext('2d');
-        this.guideContext = this.guideCanvasRef.current.getContext('2d');
+        this.dotContext = this.dotCanvasRef.current.getContext('2d');
+        this.gridContext = this.gridCanvasRef.current.getContext('2d');
         this.overlayContext = this.overlayCanvasRef.current.getContext('2d');
+        this.solidContext = this.solidCanvasRef.current.getContext('2d');
+        this.borderContext = this.borderCanvasRef.current.getContext('2d');
 
         //Canvas sizing dynamic to grid size, done here to prevent scaling issues
         this.bgCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
         this.bgCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
 
-        this.guideCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
-        this.guideCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
+        this.dotCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
+        this.dotCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
+
+        this.gridCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
+        this.gridCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
 
         this.overlayCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
         this.overlayCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
 
+        this.solidCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
+        this.solidCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
+
+        this.borderCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
+        this.borderCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
+
+        //Sets up the solid canvas
+        this.solidContext.fillStyle = "#fdf8f0ff"
+        this.solidContext.fillRect(0, 0, this.solidCanvasRef.current.width, this.solidCanvasRef.current.width)
+
+        
         /***********************************************************************
         * 
         * Overlay Canvas Listeners
@@ -138,13 +163,10 @@ class MapEditor extends React.Component {
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
-                            this.bgContext.beginPath();
-                            this.bgContext.rect(this.startX, this.startY, guidePoint.x - this.startX, guidePoint.y - this.startY);
-                            this.bgContext.lineWidth = this.brushSize;
-                            this.bgContext.stroke();
 
                             this.painting = false;
                             this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
+
                         }
                     }
                     break;
@@ -170,10 +192,14 @@ class MapEditor extends React.Component {
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
+
+                            this.applyCircleBrush(this.solidContext, this.borderContext, this.startX, this.startY, Math.abs(guidePoint.x - this.startX))
+                            
+                            /*
                             this.bgContext.beginPath();
                             this.bgContext.arc(this.startX, this.startY, Math.abs(guidePoint.x - this.startX), 0, 2 * Math.PI);
                             this.bgContext.lineWidth = this.brushSize;
-                            this.bgContext.stroke();
+                            this.bgContext.stroke(); */
 
                             this.painting = false;
                             this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
@@ -294,10 +320,11 @@ class MapEditor extends React.Component {
      */
     drawStaticGuides() {
         
-        let context = this.guideContext;
-        context.fillStyle = "#000000";
+        let gridContext = this.gridContext;
+        let dotContext = this.dotContext;
+        gridContext.fillStyle = "#000000";
 
-        const { width, height } = context.canvas;
+        const { width, height } = gridContext.canvas;
 
         const cols = Math.ceil(width / this.tileSize);
         const rows = Math.ceil(height / this.tileSize);
@@ -306,12 +333,12 @@ class MapEditor extends React.Component {
         for (let i = 0; i <= cols; i++)
         {
             //Draws a gridline for this column
-            context.beginPath();
-            context.moveTo(i * this.tileSize, 0);
-            context.lineTo(i * this.tileSize, context.canvas.height);
-            context.lineWidth = 1;
-            context.strokeStyle = "#7a7a7aff";
-            context.stroke();
+            gridContext.beginPath();
+            gridContext.moveTo(i * this.tileSize, 0);
+            gridContext.lineTo(i * this.tileSize, gridContext.canvas.height);
+            gridContext.lineWidth = 1;
+            gridContext.strokeStyle = "#7a7a7aff";
+            gridContext.stroke();
             
             for (let j = 0; j <= rows; j++)
             {
@@ -321,29 +348,29 @@ class MapEditor extends React.Component {
                 //Draws a gridline for this row once
                 if (i === 0)
                 {
-                    context.beginPath();
-                    context.moveTo(0, j * this.tileSize);
-                    context.lineTo(context.canvas.width, j * this.tileSize);
-                    context.lineWidth = 1;
-                    context.strokeStyle = "#7a7a7aff";
-                    context.stroke();
+                    gridContext.beginPath();
+                    gridContext.moveTo(0, j * this.tileSize);
+                    gridContext.lineTo(gridContext.canvas.width, j * this.tileSize);
+                    gridContext.lineWidth = 1;
+                    gridContext.strokeStyle = "#7a7a7aff";
+                    gridContext.stroke();
                 }
 
                 //Corners
-                this.drawDot(context, x, y, this.guideRadius);
+                this.drawDot(dotContext, x, y, this.guideRadius);
 
                 //Line Midpoints
                 if (x + this.tileSize <= width)
                 {
-                    this.drawDot(context, x + (this.tileSize / 2), y, this.guideRadius)
+                    this.drawDot(dotContext, x + (this.tileSize / 2), y, this.guideRadius)
                 }
                 if (y + this.tileSize <= height)
                 {
-                    this.drawDot(context, x, y + (this.tileSize / 2), this.guideRadius)
+                    this.drawDot(dotContext, x, y + (this.tileSize / 2), this.guideRadius)
                 }
 
                 //Center Point
-                this.drawDot(context, x + (this.tileSize / 2), y + (this.tileSize / 2), this.guideRadius)
+                this.drawDot(dotContext, x + (this.tileSize / 2), y + (this.tileSize / 2), this.guideRadius)
             }
         }
     }
@@ -429,6 +456,128 @@ class MapEditor extends React.Component {
         context.fill();
     }
 
+    /**
+     * Carves a circle out of a canvas and erases engulfed borders
+     */
+    clearCircle(solidContext, borderContext, x, y, r)
+    {
+        solidContext.save()
+        borderContext.save()
+
+        //This line means that now wherever we draw, it will remove whatever was already there
+        solidContext.globalCompositeOperation = "destination-out";
+        borderContext.globalCompositeOperation = "destination-out";
+
+        //Clears engulfed borders
+        borderContext.beginPath();
+        borderContext.arc(x, y, r, 0, Math.PI * 2);
+        borderContext.fill();
+
+        //Clears the circle from the solid canvas by filling it with transparency
+        solidContext.beginPath();
+        solidContext.arc(x, y, r, 0, Math.PI * 2);
+        solidContext.fill();
+
+        solidContext.restore();
+        borderContext.restore();
+    }
+
+    /**
+     * Snags the image data of an area
+     */
+    captureAlpha(context, x, y, w, h)
+    {
+        const img = context.getImageData(x, y, w, h);
+        return img.data;
+    }
+
+    /**
+     * Determines which pixels became empty after a brush stroke, and which are touching parts of the solid canvas' rectangle that still exist.
+     * 
+     * Before and after are image data, Uint8ClampedArrays to be precise, they are formatted as:
+     * an array of pixels where each pixel occuppies four array slots
+     * [..., Red, Green, Blue, Alpha, Red, Green, Blue, Alpha, ...]
+     * So data[0] = First pixel red, etc.
+     */
+    findNewEdges(before, after, w, h)
+    {
+        let edges = [];
+
+        //This loop is set up to ignore edge pixels, because it would run out of bounds.
+        //This is fine because there is padding that prevents any relevant pixels from being skipped.
+        for (let y = 1; y < h - 1; y++) 
+        {
+            for (let x = 1; x < w - 1; x++) 
+            {
+                //I equals the pixel index (y * w + x) times the RGBA step (4) + 3 to get to the alpha value
+                const i = (y * w + x) * 4 + 3;
+
+                //Compares if alpha was solid before and clear now
+                const wasSolid = before[i] !== 0;
+                const isClear  = after[i] === 0;
+
+                //Early break for efficiency if either is false, no need to check further.
+                if (!wasSolid || !isClear) continue;
+
+                const neighbors = [
+                    i - 4,
+                    i + 4,
+                    i - w * 4,
+                    i + w * 4
+                ];
+
+                //Checks if at least one neighbor pixel is still solid, is so this pixel needs a border drawn on it.
+                if (neighbors.some(n => after[n] !== 0)) {
+                    edges.push({ x, y });
+                }
+            }
+        }
+
+        return edges;
+    }
+
+    /**
+     * Goes through an array of edges and draws a dot on each one.
+     */
+    drawEdgeDots(context, edges, x, y)
+    {
+        context.save();
+        context.fillStyle = "#000000";
+
+        for (const point of edges)
+        {
+            context.fillRect(x + point.x, y + point.y, this.brushSize, this.brushSize);
+        }
+
+        context.restore();
+    }
+
+    /**
+     * Calls all the helpers used to carry out a user confirming their circle stroke
+     */
+    applyCircleBrush(solidContext, borderContext, x, y, r)
+    {
+        //Makes a bounding box to limit the area checked for transparency changes to the circle area plus a little padding
+        const pad = 2;
+        const boxSize = Math.ceil(r * 2) + pad * 2;
+        const boxX = Math.floor(x - r - pad);
+        const boxY = Math.floor(y - r - pad);
+
+        //Grabs the image data of the area before fulfilling the stroke
+        const beforeAlpha = this.captureAlpha(solidContext, boxX, boxY, boxSize, boxSize)
+        
+        this.clearCircle(solidContext, borderContext, x, y, r);
+
+        //Grabs the image data of the area after fulfilling the stroke
+        const afterAlpha = this.captureAlpha(solidContext, boxX, boxY, boxSize, boxSize);
+
+        //Calculates the new borders
+        const edges = this.findNewEdges(beforeAlpha, afterAlpha, boxSize, boxSize);
+
+        //Draws new borders
+        this.drawEdgeDots(borderContext, edges, boxX, boxY);
+    }
+
     /***********************************************************************
      * 
      * UI
@@ -438,7 +587,10 @@ class MapEditor extends React.Component {
         return ( 
             <div style={{border: "solid 5px black", width: this.props.dimensions[1] * this.tileSize, height: this.props.dimensions[0] * this.tileSize}}>
                 <canvas ref={this.overlayCanvasRef} className="overlay-canvas"></canvas>
-                <canvas ref={this.guideCanvasRef} className="guide-canvas"></canvas>
+                <canvas ref={this.borderCanvasRef} className="border-canvas"></canvas>
+                <canvas ref={this.dotCanvasRef} className="dot-canvas"></canvas>
+                <canvas ref={this.solidCanvasRef} className="solid-canvas"></canvas>
+                <canvas ref={this.gridCanvasRef} className="grid-canvas"></canvas>
                 <canvas ref={this.bgCanvasRef} className="bg-canvas"></canvas>
             </div>
         );

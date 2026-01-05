@@ -5,13 +5,29 @@
     background-color: #ffebcd;
 }
 
-.guide-canvas {
+.grid-canvas {
     position: absolute;
     pointer-events: none;
     z-index: 2;
 }
 
+.dot-canvas {
+    position: absolute;
+    pointer-events: none;
+    z-index: 4;
+}
+
 .overlay-canvas {
     position: absolute;
+    z-index: 6;
+}
+
+.solid-canvas {
+    position: absolute;
     z-index: 3;
+}
+
+.border-canvas {
+    position: absolute;
+    z-index: 5;
 }
