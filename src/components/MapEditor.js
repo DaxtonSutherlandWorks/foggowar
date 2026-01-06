@@ -40,6 +40,8 @@ class MapEditor extends React.Component {
         this.captureAlpha = this.captureAlpha.bind(this);
         this.findNewEdges = this.findNewEdges.bind(this);
         this.drawEdgeDots = this.drawEdgeDots.bind(this);
+        this.clearRectangle = this.clearRectangle.bind(this);
+        this.applySquareBrush = this.applySquareBrush.bind(this);
     }
 
     /**
@@ -163,7 +165,8 @@ class MapEditor extends React.Component {
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
-
+                            this.applySquareBrush(this.solidContext, this.borderContext, this.startX, this.startY, guidePoint.x, guidePoint.y)
+                            
                             this.painting = false;
                             this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
 
@@ -194,12 +197,6 @@ class MapEditor extends React.Component {
                         {
 
                             this.applyCircleBrush(this.solidContext, this.borderContext, this.startX, this.startY, Math.abs(guidePoint.x - this.startX))
-                            
-                            /*
-                            this.bgContext.beginPath();
-                            this.bgContext.arc(this.startX, this.startY, Math.abs(guidePoint.x - this.startX), 0, 2 * Math.PI);
-                            this.bgContext.lineWidth = this.brushSize;
-                            this.bgContext.stroke(); */
 
                             this.painting = false;
                             this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
@@ -454,6 +451,57 @@ class MapEditor extends React.Component {
         context.beginPath();
         context.arc(dot.x, dot.y, this.guideHoverRadius, 0, Math.PI * 2);
         context.fill();
+    }
+
+    applySquareBrush(solidContext, borderContext, startX, startY, endX, endY)
+    {
+
+        //Normalizing input to accout for flipped rectangles
+        const rectX = Math.min(startX, endX);
+        const rectY = Math.min(startY, endY);
+        const rectWidth = Math.abs(endX - startX);
+        const rectHeight = Math.abs(endY - startY);
+
+        //Set up bounding box
+        const pad = 2;
+
+        const boxX = Math.floor(rectX - pad);
+        const boxY = Math.floor(rectY - pad);
+        const boxWidth = Math.ceil((rectWidth + pad) * 2);
+        const boxHeight = Math.ceil((rectHeight + pad) * 2);
+
+        //Grabs the image data of the area before fulfilling the stroke
+        const beforeAlpha = this.captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight)
+        
+        this.clearRectangle(solidContext, borderContext, rectX, rectY, rectWidth, rectHeight);
+
+        //Grabs the image data of the area after fulfilling the stroke
+        const afterAlpha = this.captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight);
+
+        //Calculates the new borders
+        const edges = this.findNewEdges(beforeAlpha, afterAlpha, boxWidth, boxHeight);
+
+        //Draws new borders
+        this.drawEdgeDots(borderContext, edges, boxX, boxY);
+    }
+
+    clearRectangle(solidContext, borderContext, startX, startY, width, height)
+    {
+        solidContext.save()
+        borderContext.save()
+
+        //This line means that now wherever we draw, it will remove whatever was already there
+        solidContext.globalCompositeOperation = "destination-out";
+        borderContext.globalCompositeOperation = "destination-out";
+
+        //Clears engulfed borders
+        borderContext.fillRect(startX, startY, width, height);
+
+        //Clears the rectangle from the solid canvas by filling it with transparency
+        solidContext.fillRect(startX, startY, width, height);
+
+        solidContext.restore();
+        borderContext.restore();
     }
 
     /**
