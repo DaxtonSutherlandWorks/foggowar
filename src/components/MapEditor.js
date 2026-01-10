@@ -196,7 +196,7 @@ class MapEditor extends React.Component {
                         if (guidePoint)
                         {
 
-                            this.applyCircleBrush(this.solidContext, this.borderContext, this.startX, this.startY, Math.abs(guidePoint.x - this.startX))
+                            this.applyCircleBrush(this.solidContext, this.borderContext, this.startX, this.startY, Math.abs(Math.hypot((guidePoint.x - this.startX), (guidePoint.y - this.startY))))
 
                             this.painting = false;
                             this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
@@ -291,7 +291,7 @@ class MapEditor extends React.Component {
                     }
 
                     this.overlayContext.beginPath();
-                    this.overlayContext.arc(this.startX, this.startY, Math.abs(event.offsetX - this.startX), 0, 2 * Math.PI);
+                    this.overlayContext.arc(this.startX, this.startY, Math.abs(Math.hypot((event.offsetX - this.startX), (event.offsetY - this.startY))), 0, 2 * Math.PI);
                     this.overlayContext.lineWidth = this.brushSize;
 
                     //Changes preview line color based on if it has a valid placement
