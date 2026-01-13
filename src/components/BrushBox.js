@@ -2,6 +2,7 @@ import "../styles/BrushBox.css"
 import LineIcon from "../img/lineIcon.svg"
 import SquareIcon from "../img/squareIcon.svg"
 import CircleIcon from "../img/circleIcon.svg"
+import PolygonIcon from "../img/polygonIcon.svg"
 
 
 const BrushBox = ({paintMode, paintModeSetter}) => {
@@ -25,6 +26,8 @@ const BrushBox = ({paintMode, paintModeSetter}) => {
             case "circle":
                 paintModeSetter("circle");
                 break;
+            case "polygon":
+                paintModeSetter("polygon");
             default:
                 return;
         }
@@ -39,6 +42,7 @@ const BrushBox = ({paintMode, paintModeSetter}) => {
             <button id="line-button" className="icon-button" onClick={handleBrushChange}><img id="line-icon" src={LineIcon} alt=""></img></button>
             <button id="square-button" className="icon-button" onClick={handleBrushChange}><img id="square-icon" src={SquareIcon}></img></button>
             <button id="circle-button" className="icon-button" onClick={handleBrushChange}><img id="circle-icon" src={CircleIcon}></img></button>
+            <button id="polygon-button" className="icon-button" onClick={handleBrushChange}><img id="polygon-icon" src={PolygonIcon}></img></button>
             <p>{paintMode}</p>
         </div>
      );

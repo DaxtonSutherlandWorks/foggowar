@@ -19,6 +19,7 @@ class MapEditor extends React.Component {
         this.brushSize = 3;
 
         this.painting = false;
+        this.paintPoints = [];
 
         this.startX = 0;
         this.startY = 0;
@@ -203,10 +204,135 @@ class MapEditor extends React.Component {
                         }
                     }
                     break;
+
+                case "polygon":
+
+                    //Checks for a guide point in range
+                    if (guidePoint)
+                    {
+
+                        //First click of stroke
+                        if (this.paintPoints.length == 0)
+                        {
+                            this.paintPoints.push(guidePoint);
+                            this.painting = true;
+                        }
+
+                        else
+                        {
+                            //Checks if we're back at the start
+                            if (guidePoint.x === this.paintPoints[0].x && guidePoint.y === this.paintPoints[0].y)
+                            {
+                                this.applyPolygonBrush(this.solidContext, this.borderContext, this.paintPoints);
+
+                                this.paintPoints = [];
+                                this.painting = false;
+                                this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width);
+                            }
+                            else
+                            {
+                                this.paintPoints.push(guidePoint);
+                            }
+                        }
+                    }
+
+                    break;
                 
                 default:
                     return;
             }
+    }
+
+    /**
+     * Clears a new polygon out of the solid layer and any engulfed borders
+     */
+    applyPolygonBrush(solidContext, borderContext, paintPoints)
+    {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+
+        //Gets max and min points on the polygon
+        for (let i = 0; i < paintPoints.length; i++)
+        {
+            if (paintPoints[i].x < minX)
+            {
+                minX = paintPoints[i].x;
+            }
+            if (paintPoints[i].y < minY)
+            {
+                minY = paintPoints[i].y;
+            }
+            if (paintPoints[i].x > maxX)
+            {
+                maxX = paintPoints[i].x;
+            }
+            if (paintPoints[i].y > maxY)
+            {
+                maxY = paintPoints[i].y;
+            }
+        }
+
+        //Set up bounding box
+        const pad = 2;
+
+        const boxX = (minX - pad);
+        const boxY = (minY - pad);
+        const boxWidth = ((maxX - minX) + pad) * 2;
+        const boxHeight = ((maxY - minY) + pad) * 2;
+
+        //Grabs the image data of the area before fulfilling the stroke
+        const beforeAlpha = this.captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight)
+        
+        this.clearPolygon(solidContext, borderContext, paintPoints);
+
+        //Grabs the image data of the area after fulfilling the stroke
+        const afterAlpha = this.captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight);
+
+        //Calculates the new borders
+        const edges = this.findNewEdges(beforeAlpha, afterAlpha, boxWidth, boxHeight);
+
+        //Draws new borders
+        this.drawEdgeDots(borderContext, edges, boxX, boxY);
+        
+    }
+
+    clearPolygon(solidContext, borderContext, paintPoints)
+    {
+        solidContext.save()
+        borderContext.save()
+
+        //This line means that now wherever we draw, it will remove whatever was already there
+        solidContext.globalCompositeOperation = "destination-out";
+        borderContext.globalCompositeOperation = "destination-out";
+
+        //Clears engulfed borders
+        borderContext.beginPath();
+        borderContext.moveTo(paintPoints[0].x, paintPoints[0].y)
+
+        for (let i = 1; i < paintPoints.length; i++)
+        {
+            borderContext.lineTo(paintPoints[i].x, paintPoints[i].y);
+        }
+
+        borderContext.closePath();
+        borderContext.fill();
+
+        //Clears the polygon from the solid canvas by filling it with transparency
+        solidContext.beginPath();
+        solidContext.moveTo(paintPoints[0].x, paintPoints[0].y)
+
+        for (let i = 1; i < paintPoints.length; i++)
+        {
+            solidContext.lineTo(paintPoints[i].x, paintPoints[i].y);
+        }
+
+        solidContext.closePath();
+        solidContext.fill();
+
+        solidContext.restore();
+        borderContext.restore();
     }
 
     /**
@@ -304,6 +430,38 @@ class MapEditor extends React.Component {
                         this.overlayContext.strokeStyle = this.brushColor;
                     }
 
+                    this.overlayContext.stroke();
+                    break;
+
+                case "polygon":
+                    
+                    //Ignore movements unless painting
+                    if (!this.painting)
+                    {
+                        return;
+                    }
+
+                    this.overlayContext.lineWidth = this.brushSize;
+
+                    //Changes preview line color based on if it has a valid placement
+                    if(!guidePoint)
+                    {
+                        this.overlayContext.strokeStyle = "red"
+                    }
+                    else
+                    {
+                        this.overlayContext.strokeStyle = this.brushColor;
+                    }
+
+                    this.overlayContext.beginPath();
+                    this.overlayContext.moveTo(this.paintPoints[0].x, this.paintPoints[0].y)
+
+                    for (let i = 1; i <this.paintPoints.length; i++)
+                    {
+                        this.overlayContext.lineTo(this.paintPoints[i].x, this.paintPoints[i].y);
+                    }
+
+                    this.overlayContext.lineTo(event.offsetX, event.offsetY);
                     this.overlayContext.stroke();
                     break;
                 
