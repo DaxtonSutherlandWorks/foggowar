@@ -1,6 +1,6 @@
 import React from "react";
 import "../styles/MapEditor.css"
-import TileMap from "./TileMap";
+import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush } from "../helpers/BrushUtils";
 
 //Set up as class in order to access React.createRef
 class MapEditor extends React.Component {
@@ -34,15 +34,7 @@ class MapEditor extends React.Component {
         this.onMouseUp = this.onMouseUp.bind(this);
         this.onMouseMove = this.onMouseMove.bind(this);
         this.drawStaticGuides = this.drawStaticGuides.bind(this);
-        this.nearestGuidePoint = this.nearestGuidePoint.bind(this);
         this.drawHoverGuide = this.drawHoverGuide.bind(this);
-        this.clearCircle = this.clearCircle.bind(this);
-        this.applyCircleBrush = this.applyCircleBrush.bind(this);
-        this.captureAlpha = this.captureAlpha.bind(this);
-        this.findNewEdges = this.findNewEdges.bind(this);
-        this.drawEdgeDots = this.drawEdgeDots.bind(this);
-        this.clearRectangle = this.clearRectangle.bind(this);
-        this.applySquareBrush = this.applySquareBrush.bind(this);
     }
 
     /**
@@ -108,7 +100,7 @@ class MapEditor extends React.Component {
     onMouseDown(event) {
 
             //Checks whether the cursor is in range of a guide point
-            let guidePoint = this.nearestGuidePoint(event.offsetX, event.offsetY)
+            let guidePoint = nearestGuidePoint(event.offsetX, event.offsetY, this.tileSize, this.snapDistance)
 
             switch (this.props.paintMode)
             {
@@ -166,7 +158,7 @@ class MapEditor extends React.Component {
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
-                            this.applySquareBrush(this.solidContext, this.borderContext, this.startX, this.startY, guidePoint.x, guidePoint.y)
+                            applySquareBrush(this.solidContext, this.borderContext, this.startX, this.startY, guidePoint.x, guidePoint.y, this.brushSize)
                             
                             this.painting = false;
                             this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
@@ -197,7 +189,7 @@ class MapEditor extends React.Component {
                         if (guidePoint)
                         {
 
-                            this.applyCircleBrush(this.solidContext, this.borderContext, this.startX, this.startY, Math.abs(Math.hypot((guidePoint.x - this.startX), (guidePoint.y - this.startY))))
+                            applyCircleBrush(this.solidContext, this.borderContext, this.startX, this.startY, Math.abs(Math.hypot((guidePoint.x - this.startX), (guidePoint.y - this.startY))), this.brushSize)
 
                             this.painting = false;
                             this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
@@ -212,7 +204,7 @@ class MapEditor extends React.Component {
                     {
 
                         //First click of stroke
-                        if (this.paintPoints.length == 0)
+                        if (this.paintPoints.length === 0)
                         {
                             this.paintPoints.push(guidePoint);
                             this.painting = true;
@@ -223,7 +215,7 @@ class MapEditor extends React.Component {
                             //Checks if we're back at the start
                             if (guidePoint.x === this.paintPoints[0].x && guidePoint.y === this.paintPoints[0].y)
                             {
-                                this.applyPolygonBrush(this.solidContext, this.borderContext, this.paintPoints);
+                                applyPolygonBrush(this.solidContext, this.borderContext, this.paintPoints, this.brushSize);
 
                                 this.paintPoints = [];
                                 this.painting = false;
@@ -244,98 +236,6 @@ class MapEditor extends React.Component {
     }
 
     /**
-     * Clears a new polygon out of the solid layer and any engulfed borders
-     */
-    applyPolygonBrush(solidContext, borderContext, paintPoints)
-    {
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-
-        //Gets max and min points on the polygon
-        for (let i = 0; i < paintPoints.length; i++)
-        {
-            if (paintPoints[i].x < minX)
-            {
-                minX = paintPoints[i].x;
-            }
-            if (paintPoints[i].y < minY)
-            {
-                minY = paintPoints[i].y;
-            }
-            if (paintPoints[i].x > maxX)
-            {
-                maxX = paintPoints[i].x;
-            }
-            if (paintPoints[i].y > maxY)
-            {
-                maxY = paintPoints[i].y;
-            }
-        }
-
-        //Set up bounding box
-        const pad = 2;
-
-        const boxX = (minX - pad);
-        const boxY = (minY - pad);
-        const boxWidth = ((maxX - minX) + pad) * 2;
-        const boxHeight = ((maxY - minY) + pad) * 2;
-
-        //Grabs the image data of the area before fulfilling the stroke
-        const beforeAlpha = this.captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight)
-        
-        this.clearPolygon(solidContext, borderContext, paintPoints);
-
-        //Grabs the image data of the area after fulfilling the stroke
-        const afterAlpha = this.captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight);
-
-        //Calculates the new borders
-        const edges = this.findNewEdges(beforeAlpha, afterAlpha, boxWidth, boxHeight);
-
-        //Draws new borders
-        this.drawEdgeDots(borderContext, edges, boxX, boxY);
-        
-    }
-
-    clearPolygon(solidContext, borderContext, paintPoints)
-    {
-        solidContext.save()
-        borderContext.save()
-
-        //This line means that now wherever we draw, it will remove whatever was already there
-        solidContext.globalCompositeOperation = "destination-out";
-        borderContext.globalCompositeOperation = "destination-out";
-
-        //Clears engulfed borders
-        borderContext.beginPath();
-        borderContext.moveTo(paintPoints[0].x, paintPoints[0].y)
-
-        for (let i = 1; i < paintPoints.length; i++)
-        {
-            borderContext.lineTo(paintPoints[i].x, paintPoints[i].y);
-        }
-
-        borderContext.closePath();
-        borderContext.fill();
-
-        //Clears the polygon from the solid canvas by filling it with transparency
-        solidContext.beginPath();
-        solidContext.moveTo(paintPoints[0].x, paintPoints[0].y)
-
-        for (let i = 1; i < paintPoints.length; i++)
-        {
-            solidContext.lineTo(paintPoints[i].x, paintPoints[i].y);
-        }
-
-        solidContext.closePath();
-        solidContext.fill();
-
-        solidContext.restore();
-        borderContext.restore();
-    }
-
-    /**
     * Overlay mouse release listener
     */
     onMouseUp(event) {
@@ -352,7 +252,7 @@ class MapEditor extends React.Component {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        const guidePoint = this.nearestGuidePoint(x, y);
+        const guidePoint = nearestGuidePoint(x, y, this.tileSize, this.snapDistance);
         this.drawHoverGuide(this.overlayContext, guidePoint);
 
          switch (this.props.paintMode)
@@ -541,58 +441,6 @@ class MapEditor extends React.Component {
     }
 
     /**
-     * Calculates the nearest guide dot to the cursor.
-     */
-    nearestGuidePoint(x, y)
-    {
-        //Locates nearest grid intersection, only points a half tile within it and itself are possible fits.
-        const gx = Math.round(x / this.tileSize) * this.tileSize;
-        const gy = Math.round(y / this.tileSize) * this.tileSize;
-
-        const candidates = [
-            //Intersection
-            { x: gx, y: gy},
-
-            //Horizontal midpoints
-            { x: gx + (this.tileSize / 2), y: gy},
-            { x: gx - (this.tileSize / 2), y: gy},
-
-            //Vertical midpoints
-            { x: gx, y: gy + (this.tileSize / 2)},
-            { x: gx, y: gy - (this.tileSize / 2)},
-
-            //Tile midpoints
-            {x: gx + (this.tileSize / 2), y: gy + (this.tileSize / 2)},
-            {x: gx - (this.tileSize / 2), y: gy + (this.tileSize / 2)},
-            {x: gx + (this.tileSize / 2), y: gy - (this.tileSize / 2)},
-            {x: gx - (this.tileSize / 2), y: gy - (this.tileSize / 2)},
-        ];
-
-        let closest = null;
-        let smallestDist = Infinity;
-
-        //Loops through possible candidates to find the closest.
-        for (const point of candidates)
-        {
-            const dx = point.x - x;
-            const dy = point.y - y;
-
-            //Gets distance from current candidate
-            const dist = Math.hypot(dx, dy);
-
-            //Updates tracking values
-            if (dist < smallestDist)
-            {
-                smallestDist = dist;
-                closest = point;
-            }
-        }
-
-        //Returns the closest point if the cursor is within snapping range
-        return smallestDist <= this.snapDistance ? closest : null;
-    }
-
-    /**
      * Draws a larger dot over a guide dot to denote which dot is closest to the cursor
      */
     drawHoverGuide(context, dot)
@@ -609,179 +457,6 @@ class MapEditor extends React.Component {
         context.beginPath();
         context.arc(dot.x, dot.y, this.guideHoverRadius, 0, Math.PI * 2);
         context.fill();
-    }
-
-    applySquareBrush(solidContext, borderContext, startX, startY, endX, endY)
-    {
-
-        //Normalizing input to accout for flipped rectangles
-        const rectX = Math.min(startX, endX);
-        const rectY = Math.min(startY, endY);
-        const rectWidth = Math.abs(endX - startX);
-        const rectHeight = Math.abs(endY - startY);
-
-        //Set up bounding box
-        const pad = 2;
-
-        const boxX = Math.floor(rectX - pad);
-        const boxY = Math.floor(rectY - pad);
-        const boxWidth = Math.ceil((rectWidth + pad) * 2);
-        const boxHeight = Math.ceil((rectHeight + pad) * 2);
-
-        //Grabs the image data of the area before fulfilling the stroke
-        const beforeAlpha = this.captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight)
-        
-        this.clearRectangle(solidContext, borderContext, rectX, rectY, rectWidth, rectHeight);
-
-        //Grabs the image data of the area after fulfilling the stroke
-        const afterAlpha = this.captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight);
-
-        //Calculates the new borders
-        const edges = this.findNewEdges(beforeAlpha, afterAlpha, boxWidth, boxHeight);
-
-        //Draws new borders
-        this.drawEdgeDots(borderContext, edges, boxX, boxY);
-    }
-
-    clearRectangle(solidContext, borderContext, startX, startY, width, height)
-    {
-        solidContext.save()
-        borderContext.save()
-
-        //This line means that now wherever we draw, it will remove whatever was already there
-        solidContext.globalCompositeOperation = "destination-out";
-        borderContext.globalCompositeOperation = "destination-out";
-
-        //Clears engulfed borders
-        borderContext.fillRect(startX, startY, width, height);
-
-        //Clears the rectangle from the solid canvas by filling it with transparency
-        solidContext.fillRect(startX, startY, width, height);
-
-        solidContext.restore();
-        borderContext.restore();
-    }
-
-    /**
-     * Carves a circle out of a canvas and erases engulfed borders
-     */
-    clearCircle(solidContext, borderContext, x, y, r)
-    {
-        solidContext.save()
-        borderContext.save()
-
-        //This line means that now wherever we draw, it will remove whatever was already there
-        solidContext.globalCompositeOperation = "destination-out";
-        borderContext.globalCompositeOperation = "destination-out";
-
-        //Clears engulfed borders
-        borderContext.beginPath();
-        borderContext.arc(x, y, r, 0, Math.PI * 2);
-        borderContext.fill();
-
-        //Clears the circle from the solid canvas by filling it with transparency
-        solidContext.beginPath();
-        solidContext.arc(x, y, r, 0, Math.PI * 2);
-        solidContext.fill();
-
-        solidContext.restore();
-        borderContext.restore();
-    }
-
-    /**
-     * Snags the image data of an area
-     */
-    captureAlpha(context, x, y, w, h)
-    {
-        const img = context.getImageData(x, y, w, h);
-        return img.data;
-    }
-
-    /**
-     * Determines which pixels became empty after a brush stroke, and which are touching parts of the solid canvas' rectangle that still exist.
-     * 
-     * Before and after are image data, Uint8ClampedArrays to be precise, they are formatted as:
-     * an array of pixels where each pixel occuppies four array slots
-     * [..., Red, Green, Blue, Alpha, Red, Green, Blue, Alpha, ...]
-     * So data[0] = First pixel red, etc.
-     */
-    findNewEdges(before, after, w, h)
-    {
-        let edges = [];
-
-        //This loop is set up to ignore edge pixels, because it would run out of bounds.
-        //This is fine because there is padding that prevents any relevant pixels from being skipped.
-        for (let y = 1; y < h - 1; y++) 
-        {
-            for (let x = 1; x < w - 1; x++) 
-            {
-                //I equals the pixel index (y * w + x) times the RGBA step (4) + 3 to get to the alpha value
-                const i = (y * w + x) * 4 + 3;
-
-                //Compares if alpha was solid before and clear now
-                const wasSolid = before[i] !== 0;
-                const isClear  = after[i] === 0;
-
-                //Early break for efficiency if either is false, no need to check further.
-                if (!wasSolid || !isClear) continue;
-
-                const neighbors = [
-                    i - 4,
-                    i + 4,
-                    i - w * 4,
-                    i + w * 4
-                ];
-
-                //Checks if at least one neighbor pixel is still solid, is so this pixel needs a border drawn on it.
-                if (neighbors.some(n => after[n] !== 0)) {
-                    edges.push({ x, y });
-                }
-            }
-        }
-
-        return edges;
-    }
-
-    /**
-     * Goes through an array of edges and draws a dot on each one.
-     */
-    drawEdgeDots(context, edges, x, y)
-    {
-        context.save();
-        context.fillStyle = "#000000";
-
-        for (const point of edges)
-        {
-            context.fillRect(x + point.x, y + point.y, this.brushSize, this.brushSize);
-        }
-
-        context.restore();
-    }
-
-    /**
-     * Calls all the helpers used to carry out a user confirming their circle stroke
-     */
-    applyCircleBrush(solidContext, borderContext, x, y, r)
-    {
-        //Makes a bounding box to limit the area checked for transparency changes to the circle area plus a little padding
-        const pad = 2;
-        const boxSize = Math.ceil(r * 2) + pad * 2;
-        const boxX = Math.floor(x - r - pad);
-        const boxY = Math.floor(y - r - pad);
-
-        //Grabs the image data of the area before fulfilling the stroke
-        const beforeAlpha = this.captureAlpha(solidContext, boxX, boxY, boxSize, boxSize)
-        
-        this.clearCircle(solidContext, borderContext, x, y, r);
-
-        //Grabs the image data of the area after fulfilling the stroke
-        const afterAlpha = this.captureAlpha(solidContext, boxX, boxY, boxSize, boxSize);
-
-        //Calculates the new borders
-        const edges = this.findNewEdges(beforeAlpha, afterAlpha, boxSize, boxSize);
-
-        //Draws new borders
-        this.drawEdgeDots(borderContext, edges, boxX, boxY);
     }
 
     /***********************************************************************
