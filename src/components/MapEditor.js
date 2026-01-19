@@ -1,9 +1,12 @@
 import React from "react";
 import "../styles/MapEditor.css"
-import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush } from "../helpers/BrushUtils";
+
+import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush, isSquareCleared } from "../helpers/BrushUtils";
 
 //Set up as class in order to access React.createRef
 class MapEditor extends React.Component {
+
+    stampImage = null;
     
     //Sets up canvas references and initial brush settings
     constructor(props) {
@@ -35,6 +38,7 @@ class MapEditor extends React.Component {
         this.onMouseMove = this.onMouseMove.bind(this);
         this.drawStaticGuides = this.drawStaticGuides.bind(this);
         this.drawHoverGuide = this.drawHoverGuide.bind(this);
+        this.loadStamp = this.loadStamp.bind(this);
     }
 
     /**
@@ -72,7 +76,6 @@ class MapEditor extends React.Component {
         //Sets up the solid canvas
         this.solidContext.fillStyle = "#fdf8f0ff"
         this.solidContext.fillRect(0, 0, this.solidCanvasRef.current.width, this.solidCanvasRef.current.width)
-
         
         /***********************************************************************
         * 
@@ -92,6 +95,42 @@ class MapEditor extends React.Component {
        this.overlayCanvasRef.current.addEventListener('mousemove', this.onMouseMove);
 
        this.drawStaticGuides();
+
+       this.loadStamp(this.props.currStamp)
+    }
+
+    /**
+     * This updates the selected stamp everytime it changes
+     */
+    componentDidUpdate(prevProps) {
+        if (prevProps.currStamp !== this.props.currStamp)
+        {
+            this.loadStamp(this.props.currStamp);
+        }
+    }
+
+    /**
+     * Loads the current stamp into an image that can be drawn on a canvas
+     */
+    loadStamp(path)
+    {
+        if (!path) {
+            this.stampImage = null;
+            return;
+        }
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        img.onload = () => {
+            this.stampImage = img;
+        };
+
+        img.onerror = () => {
+            this.stampImage = null;
+        };
+
+        img.src = path;
     }
 
     /**
@@ -229,6 +268,18 @@ class MapEditor extends React.Component {
                     }
 
                     break;
+
+                case "stamp":
+
+                    if(guidePoint)
+                    {
+                        if (isSquareCleared(this.solidContext, guidePoint.x, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]))
+                        {
+                            this.bgContext.drawImage(this.stampImage, guidePoint.x, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]);
+                        }
+                    }
+                    
+                    break;
                 
                 default:
                     return;
@@ -363,6 +414,26 @@ class MapEditor extends React.Component {
 
                     this.overlayContext.lineTo(event.offsetX, event.offsetY);
                     this.overlayContext.stroke();
+                    break;
+
+                case "stamp":
+
+                    if (guidePoint)
+                    {
+                        this.overlayContext.save();
+
+                        this.overlayContext.drawImage(this.stampImage, guidePoint.x, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]);
+                        
+                        if (!isSquareCleared(this.solidContext, guidePoint.x, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]))
+                        {
+                            this.overlayContext.globalCompositeOperation = "source-atop";
+                            this.overlayContext.fillStyle = "red";
+                            this.overlayContext.fillRect(guidePoint.x + 6, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]);
+                        }
+                        
+                        this.overlayContext.restore();
+                    }
+                    
                     break;
                 
                 default:

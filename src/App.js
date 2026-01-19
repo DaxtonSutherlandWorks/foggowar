@@ -8,13 +8,14 @@ import Toolbar from './components/Toolbar';
 function App() {
 
   const [paintMode, paintModeSetter] = useState("line");
+  const [currStamp, setCurrStamp] = useState("/stamps/stampPH.svg");
 
   return (
     <div>
       <Toolbar></Toolbar>
       <div className='workspace'>
-        <BrushBox paintMode={paintMode} paintModeSetter={paintModeSetter}></BrushBox>
-        <MapEditor dimensions={[10,10]} paintMode={paintMode}></MapEditor>
+        <BrushBox paintMode={paintMode} paintModeSetter={paintModeSetter} currStamp={currStamp} currStampSetter={setCurrStamp}></BrushBox>
+        <MapEditor dimensions={[10,10]} paintMode={paintMode} currStamp={currStamp} stampSize={[70,70]}></MapEditor>
         <ChatBox></ChatBox>
       </div>
     </div>

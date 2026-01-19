@@ -74,6 +74,32 @@
 
         return edges;
     }
+
+    /**
+     * Checks if a square of a given width and heigh is clear, with the guide point given being the top left.
+     */
+    export const isSquareCleared = (context, guideX, guideY, squareWidth, squareHeight) =>
+    {
+        //Checks that the area does not extend past the canvas
+        if (guideX < 0 || guideY < 0 || guideX + squareWidth > context.canvas.width || guideY + squareHeight > context.canvas.height)
+        {
+            return false;
+        }
+
+        const img = context.getImageData(guideX, guideY, squareWidth, squareHeight).data;
+
+        //Loops through the returned array, checking the alpha value of each pixel.
+        for (let i = 3; i < img.length; i += 4) 
+        {
+            if (img[i] !== 0) 
+            {
+                return false;
+            }
+        }
+
+        return true;
+        
+    }
     
 
     /**
