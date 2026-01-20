@@ -1,33 +1,33 @@
-.bg-canvas {
+.line-stamp-canvas {
+    position: absolute;
+    pointer-events: none;
+    z-index: 6;
+}
+
+.grid-canvas {
     position: absolute;
     pointer-events: none;
     z-index: 1;
     background-color: #ffebcd;
 }
 
-.grid-canvas {
-    position: absolute;
-    pointer-events: none;
-    z-index: 2;
-}
-
 .dot-canvas {
     position: absolute;
     pointer-events: none;
-    z-index: 4;
+    z-index: 3;
 }
 
 .overlay-canvas {
     position: absolute;
-    z-index: 6;
+    z-index: 5;
 }
 
 .solid-canvas {
     position: absolute;
-    z-index: 3;
+    z-index: 2;
 }
 
 .border-canvas {
     position: absolute;
-    z-index: 5;
+    z-index: 4;
 }

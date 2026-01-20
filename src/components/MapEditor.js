@@ -1,121 +1,104 @@
-import React from "react";
+import { useEffect, useRef, useState } from "react";
 import "../styles/MapEditor.css"
 
 import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush, isSquareCleared } from "../helpers/BrushUtils";
 
 //Set up as class in order to access React.createRef
-class MapEditor extends React.Component {
+const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
 
-    stampImage = null;
-    
-    //Sets up canvas references and initial brush settings
-    constructor(props) {
-        super(props);
-        this.bgCanvasRef = React.createRef();
-        this.dotCanvasRef = React.createRef();
-        this.gridCanvasRef = React.createRef();
-        this.borderCanvasRef = React.createRef();
-        this.overlayCanvasRef = React.createRef();
-        this.solidCanvasRef = React.createRef();
+    //Canvas Refs
+    const lineStampCanvasRef = useRef(null);
+    const gridCanvasRef = useRef(null);
+    const borderCanvasRef = useRef(null);
+    const overlayCanvasRef = useRef(null);
+    const solidCanvasRef = useRef(null);
+    const dotCanvasRef = useRef(null);
 
-        this.brushColor = '#000000';
-        this.brushSize = 3;
+    //Context Refs
+    const lineStampContext = useRef(null);
+    const gridContext = useRef(null);
+    const borderContext = useRef(null);
+    const overlayContext = useRef(null);
+    const solidContext = useRef(null);
+    const dotContext = useRef(null);
 
-        this.painting = false;
-        this.paintPoints = [];
+    const painting = useRef(false);
+    const startCoords = useRef([]);
+    const paintPoints = useRef([]);
+    const stampImage = useRef(null);
+    const brushColor = useRef("black");
+    const brushSize = useRef(3);
+    const guideRadius = useRef(2);
+    const guideHoverRadius = useRef(6);
+    const snapDistance = useRef(12);
+    const commandHistory = useRef(["test","test","test2"]);
 
-        this.startX = 0;
-        this.startY = 0;
+    useEffect(() => {
 
-        this.tileSize = 70;
-        this.guideRadius = 2;
-        this.guideHoverRadius = 6;
-        this.snapDistance = 12;
+        if (!lineStampCanvasRef.current || !gridCanvasRef.current)
+        {
+            return
+        }
 
-        //Methods must be bound to "this" in order to access "this'" properties
-        this.onMouseDown = this.onMouseDown.bind(this);
-        this.onMouseUp = this.onMouseUp.bind(this);
-        this.onMouseMove = this.onMouseMove.bind(this);
-        this.drawStaticGuides = this.drawStaticGuides.bind(this);
-        this.drawHoverGuide = this.drawHoverGuide.bind(this);
-        this.loadStamp = this.loadStamp.bind(this);
-    }
+        //Setting up contexts
+        lineStampContext.current = lineStampCanvasRef.current.getContext("2d");
+        gridContext.current = gridCanvasRef.current.getContext("2d");
+        borderContext.current = borderCanvasRef.current.getContext("2d");
+        overlayContext.current = overlayCanvasRef.current.getContext("2d");
+        solidContext.current = solidCanvasRef.current.getContext("2d");
+        dotContext.current = dotCanvasRef.current.getContext("2d");
 
-    /**
-     * Sets up listeners for the overlay and background canvases
-     */
-    componentDidMount() {
 
-        //Canvas Contexts
-        this.bgContext = this.bgCanvasRef.current.getContext('2d');
-        this.dotContext = this.dotCanvasRef.current.getContext('2d');
-        this.gridContext = this.gridCanvasRef.current.getContext('2d');
-        this.overlayContext = this.overlayCanvasRef.current.getContext('2d');
-        this.solidContext = this.solidCanvasRef.current.getContext('2d');
-        this.borderContext = this.borderCanvasRef.current.getContext('2d');
+        //Sizing canvases
+        lineStampCanvasRef.current.width = dimensions[1] * tileSize;
+        lineStampCanvasRef.current.height = dimensions[0] * tileSize;
 
-        //Canvas sizing dynamic to grid size, done here to prevent scaling issues
-        this.bgCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
-        this.bgCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
+        gridCanvasRef.current.width = dimensions[1] * tileSize;
+        gridCanvasRef.current.height = dimensions[0] * tileSize;
 
-        this.dotCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
-        this.dotCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
+        borderCanvasRef.current.width = dimensions[1] * tileSize;
+        borderCanvasRef.current.height = dimensions[0] * tileSize;
 
-        this.gridCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
-        this.gridCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
+        overlayCanvasRef.current.width = dimensions[1] * tileSize;
+        overlayCanvasRef.current.height = dimensions[0] * tileSize;
 
-        this.overlayCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
-        this.overlayCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
+        solidCanvasRef.current.width = dimensions[1] * tileSize;
+        solidCanvasRef.current.height = dimensions[0] * tileSize;
 
-        this.solidCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
-        this.solidCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
-
-        this.borderCanvasRef.current.width = this.props.dimensions[1] * this.tileSize;
-        this.borderCanvasRef.current.height = this.props.dimensions[0] * this.tileSize;
+        dotCanvasRef.current.width = dimensions[1] * tileSize;
+        dotCanvasRef.current.height = dimensions[0] * tileSize;
 
         //Sets up the solid canvas
-        this.solidContext.fillStyle = "#fdf8f0ff"
-        this.solidContext.fillRect(0, 0, this.solidCanvasRef.current.width, this.solidCanvasRef.current.width)
-        
-        /***********************************************************************
-        * 
-        * Overlay Canvas Listeners
-        * 
-        ************************************************************************/
-       
-       //Listeners are made as class methods so they can be removed before being applied
+        solidContext.current.fillStyle = "#fdf8f0ff"
+        solidContext.current.fillRect(0, 0, solidCanvasRef.current.width, solidCanvasRef.current.width);
+
+        //Listeners are made as class methods so they can be removed before being applied
        //This prevents the confusing and breaking behavior of listeners getting duplicated on a rerender.
-       this.overlayCanvasRef.current.removeEventListener('mousedown', this.onMouseDown);
-       this.overlayCanvasRef.current.addEventListener('mousedown', this.onMouseDown);
-       
-       this.overlayCanvasRef.current.removeEventListener('mouseup', this.onMouseUp);
-       this.overlayCanvasRef.current.addEventListener('mouseup', this.onMouseUp);
+       overlayCanvasRef.current.removeEventListener('mousedown', onMouseDown);
+       overlayCanvasRef.current.addEventListener('mousedown', onMouseDown);
 
-       this.overlayCanvasRef.current.removeEventListener('mousemove', this.onMouseMove);
-       this.overlayCanvasRef.current.addEventListener('mousemove', this.onMouseMove);
+       overlayCanvasRef.current.removeEventListener('mousemove', onMouseMove);
+       overlayCanvasRef.current.addEventListener('mousemove', onMouseMove);
 
-       this.drawStaticGuides();
+        drawStaticGuides();
 
-       this.loadStamp(this.props.currStamp)
-    }
+        loadStamp(currStamp)
 
-    /**
-     * This updates the selected stamp everytime it changes
-     */
-    componentDidUpdate(prevProps) {
-        if (prevProps.currStamp !== this.props.currStamp)
-        {
-            this.loadStamp(this.props.currStamp);
-        }
-    }
+    }, []);
+
+    useEffect(() => {
+
+        loadStamp(currStamp);
+
+    }, [currStamp]);
 
     /**
      * Loads the current stamp into an image that can be drawn on a canvas
      */
-    loadStamp(path)
+    const loadStamp = (path) =>
     {
         if (!path) {
-            this.stampImage = null;
+            stampImage.current = null;
             return;
         }
 
@@ -123,37 +106,35 @@ class MapEditor extends React.Component {
         img.crossOrigin = "anonymous";
 
         img.onload = () => {
-            this.stampImage = img;
+            stampImage.current = img;
         };
 
         img.onerror = () => {
-            this.stampImage = null;
+            stampImage.current = null;
         };
 
         img.src = path;
-    }
+    };
 
     /**
     * Overlay mouse click listener
     */
-    onMouseDown(event) {
+    const onMouseDown = (event) => {
 
             //Checks whether the cursor is in range of a guide point
-            let guidePoint = nearestGuidePoint(event.offsetX, event.offsetY, this.tileSize, this.snapDistance)
+            let guidePoint = nearestGuidePoint(event.offsetX, event.offsetY, tileSize, snapDistance.current)
 
-            switch (this.props.paintMode)
+            switch (paintMode)
             {
                 case "line":
-
                     //First click of stroke
-                    if (!this.painting)
+                    if (!painting.current)
                     {
                         //If in range of a guide point, snaps to it
                         if (guidePoint)
                         {
-                            this.painting = true;
-                            this.startX = guidePoint.x;
-                            this.startY = guidePoint.y;
+                            painting.current = true;
+                            startCoords.current = [guidePoint.x, guidePoint.y];
                         }
                         
                     }
@@ -164,14 +145,14 @@ class MapEditor extends React.Component {
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
-                            this.bgContext.beginPath();
-                            this.bgContext.moveTo(this.startX, this.startY);
-                            this.bgContext.lineTo(guidePoint.x, guidePoint.y);
-                            this.bgContext.lineWidth = this.brushSize;
-                            this.bgContext.stroke();
+                            lineStampContext.current.beginPath();
+                            lineStampContext.current.moveTo(startCoords.current[0], startCoords.current[1]);
+                            lineStampContext.current.lineTo(guidePoint.x, guidePoint.y);
+                            lineStampContext.current.lineWidth = brushSize.current;
+                            lineStampContext.current.stroke();
 
-                            this.painting = false;
-                            this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
+                            painting.current = false;
+                            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                         }
                     }
                     break;
@@ -179,14 +160,13 @@ class MapEditor extends React.Component {
                 case "square":
                     
                     //First click of stroke
-                    if (!this.painting)
+                    if (!painting.current)
                     {
                         //If in range of a guide point, snaps to it
                         if (guidePoint)
                         {
-                            this.painting = true;
-                            this.startX = guidePoint.x;
-                            this.startY = guidePoint.y;
+                            painting.current = true;
+                            startCoords.current = [guidePoint.x, guidePoint.y];
                         }
                         
                     }
@@ -197,10 +177,10 @@ class MapEditor extends React.Component {
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
-                            applySquareBrush(this.solidContext, this.borderContext, this.startX, this.startY, guidePoint.x, guidePoint.y, this.brushSize)
+                            applySquareBrush(solidContext.current, borderContext.current, startCoords.current[0], startCoords.current[1], guidePoint.x, guidePoint.y, brushSize.current);
                             
-                            this.painting = false;
-                            this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
+                            painting.current = false;
+                            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width)
 
                         }
                     }
@@ -209,14 +189,13 @@ class MapEditor extends React.Component {
                 case "circle":
                     
                     //First click of stroke
-                    if (!this.painting)
+                    if (!painting.current)
                     {
                         //If in range of a guide point, snaps to it
                         if (guidePoint)
                         {
-                            this.painting = true;
-                            this.startX = guidePoint.x;
-                            this.startY = guidePoint.y;
+                            painting.current = true;
+                            startCoords.current = [guidePoint.x, guidePoint.y];
                         }
                         
                     }
@@ -228,10 +207,10 @@ class MapEditor extends React.Component {
                         if (guidePoint)
                         {
 
-                            applyCircleBrush(this.solidContext, this.borderContext, this.startX, this.startY, Math.abs(Math.hypot((guidePoint.x - this.startX), (guidePoint.y - this.startY))), this.brushSize)
+                            applyCircleBrush(solidContext.current, borderContext.current, startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((guidePoint.x - startCoords.current[0]), (guidePoint.y - startCoords.current[1]))), brushSize.current)
 
-                            this.painting = false;
-                            this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width)
+                            painting.current = false;
+                            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                         }
                     }
                     break;
@@ -243,26 +222,26 @@ class MapEditor extends React.Component {
                     {
 
                         //First click of stroke
-                        if (this.paintPoints.length === 0)
+                        if (paintPoints.current.length === 0)
                         {
-                            this.paintPoints.push(guidePoint);
-                            this.painting = true;
+                            paintPoints.current = [...paintPoints.current, guidePoint];
+                            painting.current = true;
                         }
 
                         else
                         {
                             //Checks if we're back at the start
-                            if (guidePoint.x === this.paintPoints[0].x && guidePoint.y === this.paintPoints[0].y)
+                            if (guidePoint.x === paintPoints.current[0].x && guidePoint.y === paintPoints.current[0].y)
                             {
-                                applyPolygonBrush(this.solidContext, this.borderContext, this.paintPoints, this.brushSize);
+                                applyPolygonBrush(solidContext.current, borderContext.current, paintPoints.current, brushSize.current);
 
-                                this.paintPoints = [];
-                                this.painting = false;
-                                this.overlayContext.clearRect(0, 0, this.overlayCanvasRef.current.width, this.overlayCanvasRef.current.width);
+                                paintPoints.current = [];
+                                painting.current = false;
+                                overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                             }
                             else
                             {
-                                this.paintPoints.push(guidePoint);
+                                paintPoints.current = [...paintPoints.current, guidePoint];
                             }
                         }
                     }
@@ -273,9 +252,9 @@ class MapEditor extends React.Component {
 
                     if(guidePoint)
                     {
-                        if (isSquareCleared(this.solidContext, guidePoint.x, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]))
+                        if (isSquareCleared(solidContext, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
                         {
-                            this.bgContext.drawImage(this.stampImage, guidePoint.x, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]);
+                            lineStampContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
                         }
                     }
                     
@@ -287,151 +266,147 @@ class MapEditor extends React.Component {
     }
 
     /**
-    * Overlay mouse release listener
-    */
-    onMouseUp(event) {
-
-    }
-
-    /**
     * Overlay mouse movement listener
     */
-    onMouseMove(event) {
+    const onMouseMove = (event) => {
 
         //Renders a guide dot to show user where their brush will snap to, drawing or not.
-        const rect = this.overlayCanvasRef.current.getBoundingClientRect();
+        const rect = overlayCanvasRef.current.getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        const guidePoint = nearestGuidePoint(x, y, this.tileSize, this.snapDistance);
-        this.drawHoverGuide(this.overlayContext, guidePoint);
+        const guidePoint = nearestGuidePoint(x, y, tileSize, snapDistance.current);
 
-         switch (this.props.paintMode)
+        drawHoverGuide(overlayContext, guidePoint);
+
+         switch (paintMode)
             {
                 case "line":
 
                     //Ignore movements unless painting
-                    if (!this.painting)
+                    if (!painting.current)
                     {
                         return;
                     }
 
-                    this.overlayContext.beginPath();
-                    this.overlayContext.moveTo(this.startX, this.startY);
-                    this.overlayContext.lineTo(event.offsetX, event.offsetY);
-                    this.overlayContext.lineWidth = this.brushSize;
+                    overlayContext.current.save();
+                    overlayContext.current.beginPath();
+                    overlayContext.current.moveTo(startCoords.current[0], startCoords.current[1]);
+                    overlayContext.current.lineTo(event.offsetX, event.offsetY);
+                    overlayContext.current.lineWidth = brushSize.current;
 
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        this.overlayContext.strokeStyle = "red"
+                        overlayContext.current.strokeStyle = "red"
                     }
                     else
                     {
-                        this.overlayContext.strokeStyle = this.brushColor;
+                        overlayContext.current.strokeStyle = brushColor.current;
                     }
 
-                    this.overlayContext.stroke();
+                    overlayContext.current.stroke();
+                    overlayContext.current.restore();
                     break;
 
                 case "square":
 
                     //Ignore movements unless painting
-                    if (!this.painting)
+                    if (!painting.current)
                     {
                         return;
                     }
 
-                    this.overlayContext.beginPath();
-                    this.overlayContext.rect(this.startX, this.startY, event.offsetX - this.startX, event.offsetY - this.startY);
-                    this.overlayContext.lineWidth = this.brushSize;
+                    overlayContext.current.beginPath();
+                    overlayContext.current.lineWidth = brushSize.current;
+                    overlayContext.current.rect(startCoords.current[0], startCoords.current[1], event.offsetX - startCoords.current[0], event.offsetY - startCoords.current[1]);
 
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        this.overlayContext.strokeStyle = "red"
+                        overlayContext.current.strokeStyle = "red"
                     }
                     else
                     {
-                        this.overlayContext.strokeStyle = this.brushColor;
+                        overlayContext.current.strokeStyle = brushColor.current;
                     }
 
-                    this.overlayContext.stroke();
+                    overlayContext.current.stroke();
                     break;
 
                 case "circle":
 
                     //Ignore movements unless painting
-                    if (!this.painting)
+                    if (!painting.current)
                     {
                         return;
                     }
 
-                    this.overlayContext.beginPath();
-                    this.overlayContext.arc(this.startX, this.startY, Math.abs(Math.hypot((event.offsetX - this.startX), (event.offsetY - this.startY))), 0, 2 * Math.PI);
-                    this.overlayContext.lineWidth = this.brushSize;
+                    overlayContext.current.beginPath();
+                    overlayContext.current.arc(startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((event.offsetX - startCoords.current[0]), (event.offsetY - startCoords.current[1]))), 0, 2 * Math.PI);
+                    overlayContext.current.lineWidth = brushSize.current;
 
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        this.overlayContext.strokeStyle = "red"
+                        overlayContext.current.strokeStyle = "red"
                     }
                     else
                     {
-                        this.overlayContext.strokeStyle = this.brushColor;
+                        overlayContext.current.strokeStyle = brushColor.current;
                     }
 
-                    this.overlayContext.stroke();
+                    overlayContext.current.stroke();
                     break;
 
                 case "polygon":
                     
                     //Ignore movements unless painting
-                    if (!this.painting)
+                    if (!painting.current)
                     {
                         return;
                     }
 
-                    this.overlayContext.lineWidth = this.brushSize;
+                    overlayContext.current.lineWidth = brushSize.current;
 
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        this.overlayContext.strokeStyle = "red"
+                        overlayContext.current.strokeStyle = "red"
                     }
                     else
                     {
-                        this.overlayContext.strokeStyle = this.brushColor;
+                        overlayContext.current.strokeStyle = brushColor.current;
                     }
 
-                    this.overlayContext.beginPath();
-                    this.overlayContext.moveTo(this.paintPoints[0].x, this.paintPoints[0].y)
+                    overlayContext.current.beginPath();
+                    overlayContext.current.moveTo(paintPoints.current[0].x, paintPoints.current[0].y)
 
-                    for (let i = 1; i <this.paintPoints.length; i++)
+                    for (let i = 1; i < paintPoints.current.length; i++)
                     {
-                        this.overlayContext.lineTo(this.paintPoints[i].x, this.paintPoints[i].y);
+                        overlayContext.current.lineTo(paintPoints.current[i].x, paintPoints.current[i].y);
                     }
 
-                    this.overlayContext.lineTo(event.offsetX, event.offsetY);
-                    this.overlayContext.stroke();
+                    overlayContext.current.lineTo(event.offsetX, event.offsetY);
+                    overlayContext.current.stroke();
                     break;
 
                 case "stamp":
 
                     if (guidePoint)
                     {
-                        this.overlayContext.save();
+                        overlayContext.current.save();
 
-                        this.overlayContext.drawImage(this.stampImage, guidePoint.x, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]);
+                        overlayContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
                         
-                        if (!isSquareCleared(this.solidContext, guidePoint.x, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]))
+                        if (!isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
                         {
-                            this.overlayContext.globalCompositeOperation = "source-atop";
-                            this.overlayContext.fillStyle = "red";
-                            this.overlayContext.fillRect(guidePoint.x + 6, guidePoint.y, this.props.stampSize[0], this.props.stampSize[1]);
+                            overlayContext.current.globalCompositeOperation = "source-atop";
+                            overlayContext.current.fillStyle = "red";
+                            overlayContext.current.fillRect(guidePoint.x + 6, guidePoint.y, stampSize[0], stampSize[1]);
                         }
                         
-                        this.overlayContext.restore();
+                        overlayContext.current.restore();
                     }
                     
                     break;
@@ -444,59 +419,57 @@ class MapEditor extends React.Component {
     /**
      * Draws the guide dots along with the grid
      */
-    drawStaticGuides() {
-        
-        let gridContext = this.gridContext;
-        let dotContext = this.dotContext;
-        gridContext.fillStyle = "#000000";
+    const drawStaticGuides = () => {
 
-        const { width, height } = gridContext.canvas;
+        gridContext.current.fillStyle = "#000000";
 
-        const cols = Math.ceil(width / this.tileSize);
-        const rows = Math.ceil(height / this.tileSize);
+        const { width, height } = gridContext.current.canvas;
+
+        const cols = Math.ceil(width / tileSize);
+        const rows = Math.ceil(height / tileSize);
 
         //This loop draws dots for each tile and gridlines
         for (let i = 0; i <= cols; i++)
         {
             //Draws a gridline for this column
-            gridContext.beginPath();
-            gridContext.moveTo(i * this.tileSize, 0);
-            gridContext.lineTo(i * this.tileSize, gridContext.canvas.height);
-            gridContext.lineWidth = 1;
-            gridContext.strokeStyle = "#7a7a7aff";
-            gridContext.stroke();
+            gridContext.current.beginPath();
+            gridContext.current.moveTo(i * tileSize, 0);
+            gridContext.current.lineTo(i * tileSize, gridContext.current.canvas.height);
+            gridContext.current.lineWidth = 1;
+            gridContext.current.strokeStyle = "#7a7a7aff";
+            gridContext.current.stroke();
             
             for (let j = 0; j <= rows; j++)
             {
-                const x = i * this.tileSize;
-                const y = j * this.tileSize;
+                const x = i * tileSize;
+                const y = j * tileSize;
 
                 //Draws a gridline for this row once
                 if (i === 0)
                 {
-                    gridContext.beginPath();
-                    gridContext.moveTo(0, j * this.tileSize);
-                    gridContext.lineTo(gridContext.canvas.width, j * this.tileSize);
-                    gridContext.lineWidth = 1;
-                    gridContext.strokeStyle = "#7a7a7aff";
-                    gridContext.stroke();
+                    gridContext.current.beginPath();
+                    gridContext.current.moveTo(0, j * tileSize);
+                    gridContext.current.lineTo(gridContext.current.canvas.width, j * tileSize);
+                    gridContext.current.lineWidth = 1;
+                    gridContext.current.strokeStyle = "#7a7a7aff";
+                    gridContext.current.stroke();
                 }
 
                 //Corners
-                this.drawDot(dotContext, x, y, this.guideRadius);
+                drawDot(dotContext, x, y, guideRadius.current);
 
                 //Line Midpoints
-                if (x + this.tileSize <= width)
+                if (x + tileSize <= width)
                 {
-                    this.drawDot(dotContext, x + (this.tileSize / 2), y, this.guideRadius)
+                    drawDot(dotContext, x + (tileSize / 2), y, guideRadius.current)
                 }
-                if (y + this.tileSize <= height)
+                if (y + tileSize <= height)
                 {
-                    this.drawDot(dotContext, x, y + (this.tileSize / 2), this.guideRadius)
+                    drawDot(dotContext, x, y + (tileSize / 2), guideRadius.current)
                 }
 
                 //Center Point
-                this.drawDot(dotContext, x + (this.tileSize / 2), y + (this.tileSize / 2), this.guideRadius)
+                drawDot(dotContext, x + (tileSize / 2), y + (tileSize / 2), guideRadius.current)
             }
         }
     }
@@ -504,30 +477,31 @@ class MapEditor extends React.Component {
     /**
      * Draws a dot with given params
      */
-    drawDot(context, x, y, r)
+    const drawDot = (context, x, y, r) =>
     {
-        context.beginPath();
-        context.arc(x, y, r, 0, Math.PI * 2);
-        context.fill();
+        context.current.fillStyle = "black"
+        context.current.beginPath();
+        context.current.arc(x, y, r, 0, Math.PI * 2);
+        context.current.fill();
     }
 
     /**
      * Draws a larger dot over a guide dot to denote which dot is closest to the cursor
      */
-    drawHoverGuide(context, dot)
+    const drawHoverGuide = (context, dot) =>
     {
         //Clears the canvas of previous guide dot and preview
-        context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+        context.current.clearRect(0, 0, context.current.canvas.width, context.current.canvas.height);
 
         //Aborts if somehow no dot was provided
         if (!dot) return;
 
-        context.fillStyle = "#000000ff";
+        context.current.fillStyle = "#000000ff";
 
         //Draws the new guide dot
-        context.beginPath();
-        context.arc(dot.x, dot.y, this.guideHoverRadius, 0, Math.PI * 2);
-        context.fill();
+        context.current.beginPath();
+        context.current.arc(dot.x, dot.y, guideHoverRadius.current, 0, Math.PI * 2);
+        context.current.fill();
     }
 
     /***********************************************************************
@@ -535,18 +509,21 @@ class MapEditor extends React.Component {
      * UI
      * 
      ***********************************************************************/
-    render () {
-        return ( 
-            <div style={{border: "solid 5px black", width: this.props.dimensions[1] * this.tileSize, height: this.props.dimensions[0] * this.tileSize}}>
-                <canvas ref={this.overlayCanvasRef} className="overlay-canvas"></canvas>
-                <canvas ref={this.borderCanvasRef} className="border-canvas"></canvas>
-                <canvas ref={this.dotCanvasRef} className="dot-canvas"></canvas>
-                <canvas ref={this.solidCanvasRef} className="solid-canvas"></canvas>
-                <canvas ref={this.gridCanvasRef} className="grid-canvas"></canvas>
-                <canvas ref={this.bgCanvasRef} className="bg-canvas"></canvas>
+    return ( 
+        <div>
+            <div style={{border: "solid 5px black", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
+                <canvas ref={lineStampCanvasRef} className="line-stamp-canvas"></canvas>
+                <canvas ref={overlayCanvasRef} className="overlay-canvas"></canvas>
+                <canvas ref={borderCanvasRef} className="border-canvas"></canvas>
+                <canvas ref={dotCanvasRef} className="dot-canvas"></canvas>
+                <canvas ref={solidCanvasRef} className="solid-canvas"></canvas>
+                <canvas ref={gridCanvasRef} className="grid-canvas"></canvas>   
             </div>
-        );
-    }
+            <div>
+                <p>test</p>
+            </div>
+        </div>
+    );
 }
  
 export default MapEditor;
