@@ -22,6 +22,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
     const solidContext = useRef(null);
     const dotContext = useRef(null);
 
+    const paintModeRef = useRef(paintMode);
     const painting = useRef(false);
     const startCoords = useRef([]);
     const paintPoints = useRef([]);
@@ -92,6 +93,10 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
 
     }, [currStamp]);
 
+    useEffect(() => {
+        paintModeRef.current = paintMode;
+    }, [paintMode]);
+
     /**
      * Loads the current stamp into an image that can be drawn on a canvas
      */
@@ -124,7 +129,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
             //Checks whether the cursor is in range of a guide point
             let guidePoint = nearestGuidePoint(event.offsetX, event.offsetY, tileSize, snapDistance.current)
 
-            switch (paintMode)
+            switch (paintModeRef.current)
             {
                 case "line":
                     //First click of stroke
@@ -252,7 +257,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
 
                     if(guidePoint)
                     {
-                        if (isSquareCleared(solidContext, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
+                        if (isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
                         {
                             lineStampContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
                         }
@@ -279,7 +284,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
 
         drawHoverGuide(overlayContext, guidePoint);
 
-         switch (paintMode)
+         switch (paintModeRef.current)
             {
                 case "line":
 
