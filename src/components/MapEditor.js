@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 
-import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush, isSquareCleared } from "../helpers/BrushUtils";
+import { nearestGuidePoint, applySquareBrush, applySquareDeletion, applyPolygonBrush, applyCircleBrush, isSquareCleared } from "../helpers/BrushUtils";
 
 //Set up as class in order to access React.createRef
-const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
+const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, tileSize}) => {
 
     //Canvas Refs
     const lineStampCanvasRef = useRef(null);
@@ -23,6 +23,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
     const dotContext = useRef(null);
 
     const paintModeRef = useRef(paintMode);
+    const deleteModeRef = useRef(deleteMode);
     const painting = useRef(false);
     const startCoords = useRef([]);
     const paintPoints = useRef([]);
@@ -96,6 +97,10 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
     useEffect(() => {
         paintModeRef.current = paintMode;
     }, [paintMode]);
+
+    useEffect(() => {
+        deleteModeRef.current = deleteMode;
+    }, [deleteMode]);
 
     /**
      * Loads the current stamp into an image that can be drawn on a canvas
@@ -182,7 +187,8 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
-                            applySquareBrush(solidContext.current, borderContext.current, startCoords.current[0], startCoords.current[1], guidePoint.x, guidePoint.y, brushSize.current);
+
+                            applySquareBrush(solidContext.current, borderContext.current, startCoords.current[0], startCoords.current[1], guidePoint.x, guidePoint.y, brushSize.current, deleteModeRef.current);
                             
                             painting.current = false;
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width)
@@ -212,7 +218,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
                         if (guidePoint)
                         {
 
-                            applyCircleBrush(solidContext.current, borderContext.current, startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((guidePoint.x - startCoords.current[0]), (guidePoint.y - startCoords.current[1]))), brushSize.current)
+                            applyCircleBrush(solidContext.current, borderContext.current, startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((guidePoint.x - startCoords.current[0]), (guidePoint.y - startCoords.current[1]))), brushSize.current, deleteModeRef.current)
 
                             painting.current = false;
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
@@ -238,7 +244,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
                             //Checks if we're back at the start
                             if (guidePoint.x === paintPoints.current[0].x && guidePoint.y === paintPoints.current[0].y)
                             {
-                                applyPolygonBrush(solidContext.current, borderContext.current, paintPoints.current, brushSize.current);
+                                applyPolygonBrush(solidContext.current, borderContext.current, paintPoints.current, brushSize.current, deleteModeRef.current);
 
                                 paintPoints.current = [];
                                 painting.current = false;
@@ -303,7 +309,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        overlayContext.current.strokeStyle = "red"
+                        overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
                     }
                     else
                     {
@@ -329,7 +335,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        overlayContext.current.strokeStyle = "red"
+                        overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
                     }
                     else
                     {
@@ -354,7 +360,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        overlayContext.current.strokeStyle = "red"
+                        overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
                     }
                     else
                     {
@@ -377,7 +383,7 @@ const MapEditor = ({dimensions, paintMode, currStamp, stampSize, tileSize}) => {
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        overlayContext.current.strokeStyle = "red"
+                        overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
                     }
                     else
                     {

@@ -6,7 +6,7 @@ import PolygonIcon from "../img/polygonIcon.svg"
 import StampIcon from "../img/stampIcon.svg"
 
 
-const BrushBox = ({paintMode, paintModeSetter, currStamp, setCurrStamp}) => {
+const BrushBox = ({paintMode, paintModeSetter, deleteMode, deleteModeSetter, currStamp, setCurrStamp}) => {
 
     /**
      * Changes the parent paintMode useState to match user brush selection
@@ -38,6 +38,20 @@ const BrushBox = ({paintMode, paintModeSetter, currStamp, setCurrStamp}) => {
         }
     }
 
+    const handleDeleteChange = (event) => {
+        //Gets id prefix
+        let id = event.target.id.split("-")
+
+        if (id[0] === "draw")
+        {
+            deleteModeSetter(false);
+        }
+        else
+        {
+            deleteModeSetter(true);
+        }
+    }
+
 
     return ( 
         <div>
@@ -50,6 +64,10 @@ const BrushBox = ({paintMode, paintModeSetter, currStamp, setCurrStamp}) => {
             <button id="polygon-button" className="icon-button" onClick={handleBrushChange}><img id="polygon-icon" src={PolygonIcon} alt="Polygon Icon"></img></button>
             <button id="stamp-button" className="icon-button" onClick={handleBrushChange}><img id="stamp-icon" src={StampIcon} alt="Stamp Icon"></img></button>
             <p>{paintMode}</p>
+            {(paintMode !== "line" && paintMode != "stamp") && <div>
+                <button id="draw-button"  onClick={handleDeleteChange}>Draw</button>
+                <button id="delete-button" onClick={handleDeleteChange}>Delete</button>
+            </div>}
         </div>
      );
 }

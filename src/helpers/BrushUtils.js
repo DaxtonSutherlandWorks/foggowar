@@ -51,13 +51,14 @@
                 //I equals the pixel index (y * w + x) times the RGBA step (4) + 3 to get to the alpha value
                 const i = (y * w + x) * 4 + 3;
 
-                //Compares if alpha was solid before and clear now
-                const wasSolid = before[i] !== 0;
-                const isClear  = after[i] === 0;
+                //Makes a binary state based off of alpha
+                const beforeState = before[i] !== 0;
+                const afterState  = after[i] !== 0;
 
-                //Early break for efficiency if either is false, no need to check further.
-                if (!wasSolid || !isClear) continue;
+                //Early break for efficiency if no change, no need to check further.
+                if (afterState === beforeState) continue;
 
+                // Neighbor alpha indices (left, right, up, down)
                 const neighbors = [
                     i - 4,
                     i + 4,
@@ -65,8 +66,9 @@
                     i + w * 4
                 ];
 
-                //Checks if at least one neighbor pixel is still solid, is so this pixel needs a border drawn on it.
-                if (neighbors.some(n => after[n] !== 0)) {
+                // If any neighbor has a different state than this pixel *after* the change,
+            // then this pixel lies on a solid/clear boundary and needs an edge.
+                if (neighbors.some(n => (after[n] !== 0) !== afterState)) {
                     edges.push({ x, y });
                 }
             }
@@ -161,16 +163,24 @@
      * **************************************************************************/
 
     /**
-     * Clears a circle from the solid canvas and all engulfed borders from the border canvas
+     * Clears or fills a circle from the solid canvas and all engulfed borders from the border canvas
      */
-    export const clearCircle = (solidContext, borderContext, x, y, r) =>
+    export const clearCircle = (solidContext, borderContext, x, y, r, deletion) =>
     {
         solidContext.save()
         borderContext.save()
 
-        //This line means that now wherever we draw, it will remove whatever was already there
-        solidContext.globalCompositeOperation = "destination-out";
-        borderContext.globalCompositeOperation = "destination-out";
+        if (deletion)
+        {
+            solidContext.fillStyle = "#fdf8f0ff";
+            borderContext.fillStyle = "#fdf8f0ff";
+        }
+        else
+        {
+            //This line means that now wherever we draw, it will remove whatever was already there
+            solidContext.globalCompositeOperation = "destination-out";
+            borderContext.globalCompositeOperation = "destination-out";
+        }
 
         //Clears engulfed borders
         borderContext.beginPath();
@@ -187,16 +197,24 @@
     }
 
     /**
-     * Clears a polygon from the solid canvas and all engulfed borders from the border canvas.
+     * Clears or fills a polygon from the solid canvas and all engulfed borders from the border canvas.
      */
-    export const clearPolygon = (solidContext, borderContext, paintPoints) =>
+    export const clearPolygon = (solidContext, borderContext, paintPoints, deletion) =>
     {
         solidContext.save()
         borderContext.save()
 
-        //This line means that now wherever we draw, it will remove whatever was already there
-        solidContext.globalCompositeOperation = "destination-out";
-        borderContext.globalCompositeOperation = "destination-out";
+        if (deletion)
+        {
+            solidContext.fillStyle = "#fdf8f0ff";
+            borderContext.fillStyle = "#fdf8f0ff";
+        }
+        else
+        {
+            //This line means that now wherever we draw, it will remove whatever was already there
+            solidContext.globalCompositeOperation = "destination-out";
+            borderContext.globalCompositeOperation = "destination-out";
+        }
 
         //Clears engulfed borders
         borderContext.beginPath();
@@ -227,16 +245,24 @@
     }
 
     /**
-     * Clears a rectangle from the solid canvas and all engulfed borders from the border canvas
+     * Clears or fills a rectangle from the solid canvas and all engulfed borders from the border canvas
      */
-    export const clearRectangle = (solidContext, borderContext, startX, startY, width, height) =>
+    export const clearRectangle = (solidContext, borderContext, startX, startY, width, height, deletion) =>
     {
         solidContext.save()
         borderContext.save()
 
-        //This line means that now wherever we draw, it will remove whatever was already there
-        solidContext.globalCompositeOperation = "destination-out";
-        borderContext.globalCompositeOperation = "destination-out";
+        if (deletion)
+        {
+            solidContext.fillStyle = "#fdf8f0ff";
+            borderContext.fillStyle = "#fdf8f0ff";
+        }
+        else
+        {
+            //This line means that now wherever we draw, it will remove whatever was already there
+            solidContext.globalCompositeOperation = "destination-out";
+            borderContext.globalCompositeOperation = "destination-out";
+        }
 
         //Clears engulfed borders
         borderContext.fillRect(startX, startY, width, height);
@@ -257,7 +283,7 @@
     /**
      * Calls all the helpers used to carry out a user confirming their circle stroke
      */
-    export const applyCircleBrush = (solidContext, borderContext, x, y, r, brushSize) =>
+    export const applyCircleBrush = (solidContext, borderContext, x, y, r, brushSize, deletion) =>
     {
         //Makes a bounding box to limit the area checked for transparency changes to the circle area plus a little padding
         const pad = 2;
@@ -268,7 +294,7 @@
         //Grabs the image data of the area before fulfilling the stroke
         const beforeAlpha = captureAlpha(solidContext, boxX, boxY, boxSize, boxSize)
         
-        clearCircle(solidContext, borderContext, x, y, r);
+        clearCircle(solidContext, borderContext, x, y, r, deletion);
 
         //Grabs the image data of the area after fulfilling the stroke
         const afterAlpha = captureAlpha(solidContext, boxX, boxY, boxSize, boxSize);
@@ -283,7 +309,7 @@
     /**
      * Calls all the helpers used to carry out a user confirming their polygon stroke
      */
-    export const applyPolygonBrush = (solidContext, borderContext, paintPoints, brushSize) =>
+    export const applyPolygonBrush = (solidContext, borderContext, paintPoints, brushSize, deletion) =>
     {
         let minX = Infinity;
         let minY = Infinity;
@@ -322,7 +348,7 @@
         //Grabs the image data of the area before fulfilling the stroke
         const beforeAlpha = captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight)
         
-        clearPolygon(solidContext, borderContext, paintPoints);
+        clearPolygon(solidContext, borderContext, paintPoints, deletion);
 
         //Grabs the image data of the area after fulfilling the stroke
         const afterAlpha = captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight);
@@ -338,7 +364,7 @@
     /**
      * Calls all the helpers used to carry out a user confirming their square stroke
      */
-    export const applySquareBrush = (solidContext, borderContext, startX, startY, endX, endY, brushSize) =>
+    export const applySquareBrush = (solidContext, borderContext, startX, startY, endX, endY, brushSize, deletion) =>
     {
 
         //Normalizing input to accout for flipped rectangles
@@ -357,8 +383,8 @@
 
         //Grabs the image data of the area before fulfilling the stroke
         const beforeAlpha = captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight)
-        
-        clearRectangle(solidContext, borderContext, rectX, rectY, rectWidth, rectHeight);
+
+        clearRectangle(solidContext, borderContext, rectX, rectY, rectWidth, rectHeight, deletion);
 
         //Grabs the image data of the area after fulfilling the stroke
         const afterAlpha = captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight);
