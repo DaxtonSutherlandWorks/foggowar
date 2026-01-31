@@ -1,4 +1,10 @@
-.line-stamp-canvas {
+.stamp-canvas {
+    position: absolute;
+    pointer-events: none;
+    z-index: 7;
+}
+
+.line-canvas {
     position: absolute;
     pointer-events: none;
     z-index: 6;

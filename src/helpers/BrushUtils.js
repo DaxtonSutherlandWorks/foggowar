@@ -395,3 +395,84 @@
         //Draws new borders
         drawEdgeDots(borderContext, edges, boxX, boxY, brushSize);
     }
+
+
+    /** *************************************************************************
+     * 
+     * Canvas Updaters
+     * 
+     * **************************************************************************/
+    
+    /**
+     * Updates the line canvas, drawing the newest line or all lines if needed.
+     */
+    //TODO: Break drawing logic into seperate helper
+    export const updateLines = (editorContext, fullRedraw) =>
+    {
+        const lineCanvas = editorContext.lineCanvasRef.current;
+        const canvasLines = editorContext.linesRef.current;
+        const lineContext = lineCanvas.getContext("2d");
+
+
+        if (!fullRedraw)
+        {
+            //Gets newest line
+            const line = canvasLines[canvasLines.length - 1]
+
+            lineContext.beginPath();
+            lineContext.moveTo(line.x1, line.y1);
+            lineContext.lineTo(line.x2, line.y2);
+            lineContext.strokeStyle = "black";
+            lineContext.lineWidth = 3;
+            lineContext.stroke();
+        }
+
+        else
+        {
+            //Clears entire canvas
+            lineContext.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
+
+            //Redraws all remaining lines from data
+            for (const line of editorContext.linesRef.current)
+            {
+                lineContext.beginPath();
+                lineContext.moveTo(line.x1, line.y1);
+                lineContext.lineTo(line.x2, line.y2);
+                lineContext.strokeStyle = "black";
+                lineContext.lineWidth = 3;
+                lineContext.stroke();
+            }
+        } 
+    }
+
+    /**
+     * Updates the stamp canvas, drawing the newest stamp or all stamps if needed.
+     */
+    //TODO: Break drawing logic into seperate helper
+    export const updateStamps = (editorContext, fullRedraw) =>
+    {
+        const stampCanvas = editorContext.stampCanvasRef.current;
+        const canvasStamps = editorContext.stampsRef.current;
+        const stampContext = stampCanvas.getContext("2d");
+
+
+        if (!fullRedraw)
+        {
+            //Gets newest stamp
+            const stamp = canvasStamps[canvasStamps.length - 1]
+
+            stampContext.drawImage(stamp.image, stamp.x, stamp.y, stamp.width, stamp.height);
+        }
+
+        else
+        {
+            //Clears entire canvas
+            stampContext.clearRect(0, 0, stampCanvas.width, stampCanvas.height);
+
+            //Redraws all remaining lines from data
+            for (const stamp of editorContext.stampsRef.current)
+            {
+                stampContext.drawImage(stamp.image, stamp.x, stamp.y, stamp.width, stamp.height);
+            }
+        } 
+    }

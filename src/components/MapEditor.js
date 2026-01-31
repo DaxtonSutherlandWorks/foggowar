@@ -1,13 +1,16 @@
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
-
-import { nearestGuidePoint, applySquareBrush, applySquareDeletion, applyPolygonBrush, applyCircleBrush, isSquareCleared } from "../helpers/BrushUtils";
+import {CommandManager} from "../classes/CommandManager"
+import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush, isSquareCleared } from "../helpers/BrushUtils";
+import { DrawLineCommand } from "../classes/DrawLineCommand";
+import { DrawStampCommand } from "../classes/DrawStampCommand";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, tileSize}) => {
 
     //Canvas Refs
-    const lineStampCanvasRef = useRef(null);
+    const lineCanvasRef = useRef(null);
+    const stampCanvasRef = useRef(null);
     const gridCanvasRef = useRef(null);
     const borderCanvasRef = useRef(null);
     const overlayCanvasRef = useRef(null);
@@ -15,7 +18,8 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
     const dotCanvasRef = useRef(null);
 
     //Context Refs
-    const lineStampContext = useRef(null);
+    const lineContext = useRef(null);
+    const stampContext = useRef(null);
     const gridContext = useRef(null);
     const borderContext = useRef(null);
     const overlayContext = useRef(null);
@@ -33,17 +37,46 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
     const guideRadius = useRef(2);
     const guideHoverRadius = useRef(6);
     const snapDistance = useRef(12);
-    const commandHistory = useRef(["test","test","test2"]);
 
+    const editorContextRef = useRef(null);
+    const commandManagerRef = useRef(null);
+
+    const bordersRef = useRef([]);
+    const linesRef = useRef([]);
+    const stampsRef = useRef([]);
+
+    /**
+     * Initializes our editor context and creates a new command editor to support brush execution and undoing
+     */
+    useEffect(() => {
+        editorContextRef.current = {
+            solidCanvasRef,
+            gridCanvasRef,
+            borderCanvasRef,
+            lineCanvasRef,
+            stampCanvasRef,
+
+            bordersRef,
+            linesRef,
+            stampsRef
+        }
+
+        commandManagerRef.current = new CommandManager(editorContextRef.current);
+    }, []);
+
+    /**
+     * Initializes canvases and several drawing tools.
+     */
     useEffect(() => {
 
-        if (!lineStampCanvasRef.current || !gridCanvasRef.current)
+        if (!lineCanvasRef.current || !gridCanvasRef.current)
         {
             return
         }
 
         //Setting up contexts
-        lineStampContext.current = lineStampCanvasRef.current.getContext("2d");
+        lineContext.current = lineCanvasRef.current.getContext("2d");
+        stampContext.current = stampCanvasRef.current.getContext("2d");
         gridContext.current = gridCanvasRef.current.getContext("2d");
         borderContext.current = borderCanvasRef.current.getContext("2d");
         overlayContext.current = overlayCanvasRef.current.getContext("2d");
@@ -52,8 +85,11 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
 
 
         //Sizing canvases
-        lineStampCanvasRef.current.width = dimensions[1] * tileSize;
-        lineStampCanvasRef.current.height = dimensions[0] * tileSize;
+        lineCanvasRef.current.width = dimensions[1] * tileSize;
+        lineCanvasRef.current.height = dimensions[0] * tileSize;
+
+        stampCanvasRef.current.width = dimensions[1] * tileSize;
+        stampCanvasRef.current.height = dimensions[0] * tileSize;
 
         gridCanvasRef.current.width = dimensions[1] * tileSize;
         gridCanvasRef.current.height = dimensions[0] * tileSize;
@@ -88,18 +124,31 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
 
     }, []);
 
+    /**
+     * Loads a new stamp whenever it is changed
+     */
     useEffect(() => {
 
         loadStamp(currStamp);
 
     }, [currStamp]);
 
+    /**
+     * Updates the paintmode when changed in parent
+     */
     useEffect(() => {
+        
         paintModeRef.current = paintMode;
+
     }, [paintMode]);
 
+    /**
+     * Updates delete mode when changed in parent
+     */
     useEffect(() => {
+
         deleteModeRef.current = deleteMode;
+
     }, [deleteMode]);
 
     /**
@@ -155,11 +204,10 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
-                            lineStampContext.current.beginPath();
-                            lineStampContext.current.moveTo(startCoords.current[0], startCoords.current[1]);
-                            lineStampContext.current.lineTo(guidePoint.x, guidePoint.y);
-                            lineStampContext.current.lineWidth = brushSize.current;
-                            lineStampContext.current.stroke();
+                            //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
+                            commandManagerRef.current.execute(
+                                new DrawLineCommand({x1: startCoords.current[0], y1: startCoords.current[1], x2: guidePoint.x, y2: guidePoint.y})
+                            )
 
                             painting.current = false;
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
@@ -259,13 +307,17 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
 
                     break;
 
+                //TODO: Disallow stamping over a stamp
                 case "stamp":
 
                     if(guidePoint)
                     {
                         if (isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
                         {
-                            lineStampContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
+                            //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
+                            commandManagerRef.current.execute(
+                                new DrawStampCommand({image: stampImage.current, x: guidePoint.x, y: guidePoint.y, width: stampSize[0], height: stampSize[1]})
+                            );
                         }
                     }
                     
@@ -402,6 +454,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                     overlayContext.current.stroke();
                     break;
 
+                //TODO: Disallow stamping over a stamp
                 case "stamp":
 
                     if (guidePoint)
@@ -515,6 +568,14 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
         context.current.fill();
     }
 
+    /**
+     * Handles a call to undo
+     */
+    const handleUndo = (event) => 
+    {
+        commandManagerRef.current.undo();
+    }
+
     /***********************************************************************
      * 
      * UI
@@ -523,7 +584,8 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
     return ( 
         <div>
             <div style={{border: "solid 5px black", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
-                <canvas ref={lineStampCanvasRef} className="line-stamp-canvas"></canvas>
+                <canvas ref={stampCanvasRef} className="stamp-canvas"></canvas>
+                <canvas ref={lineCanvasRef} className="line-canvas"></canvas>
                 <canvas ref={overlayCanvasRef} className="overlay-canvas"></canvas>
                 <canvas ref={borderCanvasRef} className="border-canvas"></canvas>
                 <canvas ref={dotCanvasRef} className="dot-canvas"></canvas>
@@ -532,6 +594,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
             </div>
             <div>
                 <p>test</p>
+                <button onClick={handleUndo}>Undo</button>
             </div>
         </div>
     );

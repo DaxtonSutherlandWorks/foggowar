@@ -52,7 +52,6 @@ const BrushBox = ({paintMode, paintModeSetter, deleteMode, deleteModeSetter, cur
         }
     }
 
-
     return ( 
         <div>
             <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"/>
@@ -64,7 +63,7 @@ const BrushBox = ({paintMode, paintModeSetter, deleteMode, deleteModeSetter, cur
             <button id="polygon-button" className="icon-button" onClick={handleBrushChange}><img id="polygon-icon" src={PolygonIcon} alt="Polygon Icon"></img></button>
             <button id="stamp-button" className="icon-button" onClick={handleBrushChange}><img id="stamp-icon" src={StampIcon} alt="Stamp Icon"></img></button>
             <p>{paintMode}</p>
-            {(paintMode !== "line" && paintMode != "stamp") && <div>
+            {(paintMode !== "line" && paintMode !== "stamp") && <div>
                 <button id="draw-button"  onClick={handleDeleteChange}>Draw</button>
                 <button id="delete-button" onClick={handleDeleteChange}>Delete</button>
             </div>}
