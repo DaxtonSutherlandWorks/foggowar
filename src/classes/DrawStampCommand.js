@@ -1,6 +1,9 @@
 import { updateStamps } from "../helpers/BrushUtils";
 import { Command } from "./Command";
 
+/**
+ * Represents a user command to draw a stamp, with functionality to undo/redo
+ */
 export class DrawStampCommand extends Command {
     
     // stamp = {image, x, y, width, height}

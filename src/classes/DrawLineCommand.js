@@ -1,6 +1,9 @@
 import { updateLines } from "../helpers/BrushUtils";
 import { Command } from "./Command";
 
+/**
+ * Represents a user command to draw a line, with functionality to undo/redo
+ */
 export class DrawLineCommand extends Command {
     
     // line = {x1, y1, x2, y2}

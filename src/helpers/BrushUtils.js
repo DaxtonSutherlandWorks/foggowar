@@ -12,19 +12,63 @@
     {
         const img = context.getImageData(x, y, w, h);
         return img.data;
-    }    
+    } 
+
+    /**
+     * Creates a bounding box for a given shape object
+     */
+    export const createBoundingBox = (shape, mode) =>
+    {
+        let box = {};
+
+        switch (mode)
+        {
+            // shape = {x1, y1, x2, y2}
+            case "square":
+
+                const { x1, y1, x2, y2 } = shape;
+                const rect = normalizeRectangleCoords(x1, x2, y1, y2);
+
+                //Set up bounding box
+                const pad = 3;
+
+                const boxX = Math.floor(rect.x - pad);
+                const boxY = Math.floor(rect.y - pad);
+                const boxWidth = Math.ceil((rect.w + pad) * 2);
+                const boxHeight = Math.ceil((rect.h + pad) * 2);
+
+                box =  {x: boxX, y: boxY, w: boxWidth, h: boxHeight};
+                break;
+
+            case "circle":
+                console.log("circle");
+                break;
+
+            case "polygon":
+                console.log("polygon");
+                break;
+
+
+            default:
+                console.log("OOPS")
+                break;
+        }
+
+        return box;
+
+    }
 
     /**
      * Goes through an array of edges and draws a dot on each one.
      */
-    export const drawEdgeDots = (context, edges, x, y, brushSize) => 
+    export const drawEdgeDots = (context, edges, brushSize) => 
     {
         context.save();
         context.fillStyle = "#000000";
 
         for (const point of edges)
         {
-            context.fillRect(x + point.x, y + point.y, brushSize, brushSize);
+            context.fillRect(point.x, point.y, brushSize, brushSize);
         }
 
         context.restore();
@@ -102,7 +146,6 @@
         return true;
         
     }
-    
 
     /**
      * Calculates the nearest guide dot to the cursor.
@@ -154,6 +197,63 @@
 
         //Returns the closest point if the cursor is within snapping range
         return smallestDist <= snapDistance ? closest : null;
+    }
+
+    /**
+     * Normalizes rectangle coordinates to account for inverted rectangles
+     */
+    export const normalizeRectangleCoords = (x1, y1, x2, y2) => 
+    {
+        const rectX = Math.min(x1, x2);
+        const rectY = Math.min(y1, y2);
+        const rectWidth = Math.abs(x2 - x1);
+        const rectHeight = Math.abs(y2 - y1);
+
+        return {x: rectX, y: rectY, w: rectWidth, h: rectHeight};
+    }
+
+    /**
+     * Scans the solid canvas image and returns all border edge pixels.
+     * Border pixels are solid pixels that touch at least one clear neighbor.
+     */
+    export const recomputeBorders = (editorContext, image) => 
+    {
+        //Clears existing borders
+        editorContext.borderContext.current.clearRect(0, 0, editorContext.borderCanvasRef.current.width, editorContext.borderCanvasRef.current.width);
+
+        const { data, width: w, height: h } = image;
+        const edges = [];
+
+        // Ignore outermost pixels to avoid bounds checks
+        for (let y = 1; y < h - 1; y++)
+        {
+            for (let x = 1; x < w - 1; x++)
+            {
+                // Alpha index for this pixel
+                const i = (y * w + x) * 4 + 3;
+
+                // Skip clear pixels — no need to check since borders are on solid pixels
+                if (data[i] === 0) continue;
+
+                // Alpha indices of 4-connected neighbors
+                const neighbors = [
+                    i - 4,         // left
+                    i + 4,         // right
+                    i - w * 4,     // up
+                    i + w * 4      // down
+                ];
+
+                // If any neighbor is clear, this pixel is a border
+                const touchesClear = neighbors.some(n => data[n] === 0);
+
+                if (touchesClear)
+                {
+                    edges.push({ x, y });
+                }
+            }
+        }
+
+        return edges;
     }
 
     /** *************************************************************************
@@ -245,7 +345,7 @@
     }
 
     /**
-     * Clears or fills a rectangle from the solid canvas and all engulfed borders from the border canvas
+     * Clears or fills a rectangle from the solid canvas
      */
     export const clearRectangle = (solidContext, borderContext, startX, startY, width, height, deletion) =>
     {
@@ -264,9 +364,6 @@
             borderContext.globalCompositeOperation = "destination-out";
         }
 
-        //Clears engulfed borders
-        borderContext.fillRect(startX, startY, width, height);
-
         //Clears the rectangle from the solid canvas by filling it with transparency
         solidContext.fillRect(startX, startY, width, height);
 
@@ -283,117 +380,70 @@
     /**
      * Calls all the helpers used to carry out a user confirming their circle stroke
      */
-    export const applyCircleBrush = (solidContext, borderContext, x, y, r, brushSize, deletion) =>
+    export const applyCircleBrush = (editorContext, x, y, r, deletion) =>
     {
-        //Makes a bounding box to limit the area checked for transparency changes to the circle area plus a little padding
-        const pad = 2;
-        const boxSize = Math.ceil(r * 2) + pad * 2;
-        const boxX = Math.floor(x - r - pad);
-        const boxY = Math.floor(y - r - pad);
 
         //Grabs the image data of the area before fulfilling the stroke
-        const beforeAlpha = captureAlpha(solidContext, boxX, boxY, boxSize, boxSize)
+        const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
         
-        clearCircle(solidContext, borderContext, x, y, r, deletion);
+        clearCircle(editorContext.solidContext.current, editorContext.borderContext.current, x, y, r, deletion);
 
         //Grabs the image data of the area after fulfilling the stroke
-        const afterAlpha = captureAlpha(solidContext, boxX, boxY, boxSize, boxSize);
+        const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
 
         //Calculates the new borders
-        const edges = findNewEdges(beforeAlpha, afterAlpha, boxSize, boxSize);
+        const edges = recomputeBorders(editorContext, afterImage);
 
         //Draws new borders
-        drawEdgeDots(borderContext, edges, boxX, boxY, brushSize);
+        drawEdgeDots(editorContext.borderContext.current, edges, 3);
+
+        return {beforeImage, afterImage};
     }
 
     /**
      * Calls all the helpers used to carry out a user confirming their polygon stroke
      */
-    export const applyPolygonBrush = (solidContext, borderContext, paintPoints, brushSize, deletion) =>
+    export const applyPolygonBrush = (editorContext, paintPoints, deletion) =>
     {
-        let minX = Infinity;
-        let minY = Infinity;
-        let maxX = -Infinity;
-        let maxY = -Infinity;
-
-        //Gets max and min points on the polygon
-        for (let i = 0; i < paintPoints.length; i++)
-        {
-            if (paintPoints[i].x < minX)
-            {
-                minX = paintPoints[i].x;
-            }
-            if (paintPoints[i].y < minY)
-            {
-                minY = paintPoints[i].y;
-            }
-            if (paintPoints[i].x > maxX)
-            {
-                maxX = paintPoints[i].x;
-            }
-            if (paintPoints[i].y > maxY)
-            {
-                maxY = paintPoints[i].y;
-            }
-        }
-
-        //Set up bounding box
-        const pad = 2;
-
-        const boxX = (minX - pad);
-        const boxY = (minY - pad);
-        const boxWidth = ((maxX - minX) + pad) * 2;
-        const boxHeight = ((maxY - minY) + pad) * 2;
 
         //Grabs the image data of the area before fulfilling the stroke
-        const beforeAlpha = captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight)
+        const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
         
-        clearPolygon(solidContext, borderContext, paintPoints, deletion);
+        clearPolygon(editorContext.solidContext.current, editorContext.borderContext.current, paintPoints, deletion);
 
         //Grabs the image data of the area after fulfilling the stroke
-        const afterAlpha = captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight);
+        const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
 
         //Calculates the new borders
-        const edges = findNewEdges(beforeAlpha, afterAlpha, boxWidth, boxHeight);
+        const edges = recomputeBorders(editorContext, afterImage);
 
         //Draws new borders
-        drawEdgeDots(borderContext, edges, boxX, boxY, brushSize);
+        drawEdgeDots(editorContext.borderContext.current, edges, 3);
+
+        return {beforeImage, afterImage};
         
     }
     
     /**
      * Calls all the helpers used to carry out a user confirming their square stroke
      */
-    export const applySquareBrush = (solidContext, borderContext, startX, startY, endX, endY, brushSize, deletion) =>
+    export const applySquareBrush = (editorContext, x1, y1, x2, y2, deletion) =>
     {
+        const rect = normalizeRectangleCoords(x1, y1, x2, y2);
+                                   
+        const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
 
-        //Normalizing input to accout for flipped rectangles
-        const rectX = Math.min(startX, endX);
-        const rectY = Math.min(startY, endY);
-        const rectWidth = Math.abs(endX - startX);
-        const rectHeight = Math.abs(endY - startY);
+        clearRectangle(editorContext.solidContext.current, editorContext.borderContext.current, rect.x, rect.y, rect.w, rect.h, deletion);
 
-        //Set up bounding box
-        const pad = 2;
-
-        const boxX = Math.floor(rectX - pad);
-        const boxY = Math.floor(rectY - pad);
-        const boxWidth = Math.ceil((rectWidth + pad) * 2);
-        const boxHeight = Math.ceil((rectHeight + pad) * 2);
-
-        //Grabs the image data of the area before fulfilling the stroke
-        const beforeAlpha = captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight)
-
-        clearRectangle(solidContext, borderContext, rectX, rectY, rectWidth, rectHeight, deletion);
-
-        //Grabs the image data of the area after fulfilling the stroke
-        const afterAlpha = captureAlpha(solidContext, boxX, boxY, boxWidth, boxHeight);
+        const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
 
         //Calculates the new borders
-        const edges = findNewEdges(beforeAlpha, afterAlpha, boxWidth, boxHeight);
+        const edges = recomputeBorders(editorContext, afterImage);
 
         //Draws new borders
-        drawEdgeDots(borderContext, edges, boxX, boxY, brushSize);
+        drawEdgeDots(editorContext.borderContext.current, edges, 3);
+
+        return {beforeImage, afterImage};
     }
 
 
@@ -406,7 +456,6 @@
     /**
      * Updates the line canvas, drawing the newest line or all lines if needed.
      */
-    //TODO: Break drawing logic into seperate helper
     export const updateLines = (editorContext, fullRedraw) =>
     {
         const lineCanvas = editorContext.lineCanvasRef.current;
@@ -448,7 +497,6 @@
     /**
      * Updates the stamp canvas, drawing the newest stamp or all stamps if needed.
      */
-    //TODO: Break drawing logic into seperate helper
     export const updateStamps = (editorContext, fullRedraw) =>
     {
         const stampCanvas = editorContext.stampCanvasRef.current;

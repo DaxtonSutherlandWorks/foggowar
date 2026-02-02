@@ -4,6 +4,7 @@ import {CommandManager} from "../classes/CommandManager"
 import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush, isSquareCleared } from "../helpers/BrushUtils";
 import { DrawLineCommand } from "../classes/DrawLineCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
+import { ClearShapeCommand } from "../classes/ClearShapeCommand";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -41,7 +42,6 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
     const editorContextRef = useRef(null);
     const commandManagerRef = useRef(null);
 
-    const bordersRef = useRef([]);
     const linesRef = useRef([]);
     const stampsRef = useRef([]);
 
@@ -56,7 +56,12 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
             lineCanvasRef,
             stampCanvasRef,
 
-            bordersRef,
+            solidContext,
+            gridContext,
+            borderContext,
+            lineContext,
+            stampContext,
+
             linesRef,
             stampsRef
         }
@@ -235,9 +240,17 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
+                            const x1 = startCoords.current[0];
+                            const y1 = startCoords.current[1];
+                            const x2 = guidePoint.x;
+                            const y2 = guidePoint.y;
 
-                            applySquareBrush(solidContext.current, borderContext.current, startCoords.current[0], startCoords.current[1], guidePoint.x, guidePoint.y, brushSize.current, deleteModeRef.current);
-                            
+                            const canvasImages = applySquareBrush(editorContextRef.current, x1, y1, x2, y2, deleteModeRef.current);                            
+
+                            commandManagerRef.current.push(
+                                new ClearShapeCommand({beforeImage: canvasImages.beforeImage, afterImage: canvasImages.afterImage, editorContextRef})
+                            );
+
                             painting.current = false;
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width)
 
@@ -265,8 +278,15 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
+                            const x = startCoords.current[0];
+                            const y = startCoords.current[1];
+                            const r = Math.abs(Math.hypot((guidePoint.x - startCoords.current[0]), (guidePoint.y - startCoords.current[1])));
 
-                            applyCircleBrush(solidContext.current, borderContext.current, startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((guidePoint.x - startCoords.current[0]), (guidePoint.y - startCoords.current[1]))), brushSize.current, deleteModeRef.current)
+                            const canvasImages = applyCircleBrush(editorContextRef.current, x, y, r, deleteModeRef.current);
+
+                            commandManagerRef.current.push(
+                                new ClearShapeCommand({beforeImage: canvasImages.beforeImage, afterImage: canvasImages.afterImage, editorContextRef})
+                            );
 
                             painting.current = false;
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
@@ -292,7 +312,12 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                             //Checks if we're back at the start
                             if (guidePoint.x === paintPoints.current[0].x && guidePoint.y === paintPoints.current[0].y)
                             {
-                                applyPolygonBrush(solidContext.current, borderContext.current, paintPoints.current, brushSize.current, deleteModeRef.current);
+
+                                const canvasImages = applyPolygonBrush(editorContextRef.current, paintPoints.current, deleteModeRef.current);
+
+                                commandManagerRef.current.push(
+                                    new ClearShapeCommand({beforeImage: canvasImages.beforeImage, afterImage: canvasImages.afterImage, editorContextRef})
+                                );
 
                                 paintPoints.current = [];
                                 painting.current = false;

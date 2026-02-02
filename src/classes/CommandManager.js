@@ -13,6 +13,14 @@ export class CommandManager {
     }
 
     /**
+     * Adds a command to the undo history that is assumed to "executed" elsewhere.
+     */
+    push(command)
+    {
+        this.undoStack.push(command);
+    }
+
+    /**
      * Accepts a Command and adds it to the command history
      */
     execute(command) 
