@@ -1,7 +1,63 @@
 .icon-button {
     padding: 20px;
+    cursor: pointer;
+    margin: 10px;
+    border: 3px black solid;
+    border-radius: 5px;
+    max-width: 72px;
+    max-height: 75px;
+}
+
+.icon-button:hover {
+    scale: 1.1;
 }
 
 .icon-button i{
     scale: 2;
+}
+
+.bottom-button-container {
+    grid-column-start: span 2;
+    text-align: center;
+}
+
+.brush-grid {
+    display: grid;
+    text-align: center;
+    align-items: center;
+    align-content: center;
+    justify-content: center;
+    place-items: center;
+    grid-template-columns: 1fr 1fr;
+    max-width: 300px;
+    margin: auto;
+    margin-top: 10px;
+}
+
+.mode-button {
+    padding: 20px;
+    cursor: pointer;
+    margin: 10px;
+    font-size: large;
+    border: 3px black solid;
+    border-radius: 5px;
+}
+
+.mode-button:hover {
+    scale: 1.1;
+}
+
+.info-box {
+    background-color: #e6e6fa;
+    border: 5px double black;
+    border-radius: 10px;
+    margin: 15px;
+}
+
+.info-box p {
+    margin: 5px;
+}
+
+.info-box span {
+    font-weight: bold;
 }

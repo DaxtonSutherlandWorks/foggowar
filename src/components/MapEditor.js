@@ -5,6 +5,8 @@ import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrus
 import { DrawLineCommand } from "../classes/DrawLineCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
 import { ClearShapeCommand } from "../classes/ClearShapeCommand";
+import UndoIcon from "../img/undoIcon.svg";
+import RedoIcon from "../img/redoIcon.svg";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -214,6 +216,9 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                                 new DrawLineCommand({x1: startCoords.current[0], y1: startCoords.current[1], x2: guidePoint.x, y2: guidePoint.y})
                             )
 
+                            //Clears the redo stack to avoid conflicts
+                            commandManagerRef.current.clearRedoStack();
+
                             painting.current = false;
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                         }
@@ -250,6 +255,9 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                             commandManagerRef.current.push(
                                 new ClearShapeCommand({beforeImage: canvasImages.beforeImage, afterImage: canvasImages.afterImage, editorContextRef})
                             );
+
+                            //Clears the redo stack to avoid conflicts
+                            commandManagerRef.current.clearRedoStack();
 
                             painting.current = false;
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width)
@@ -288,6 +296,9 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                                 new ClearShapeCommand({beforeImage: canvasImages.beforeImage, afterImage: canvasImages.afterImage, editorContextRef})
                             );
 
+                            //Clears the redo stack to avoid conflicts
+                            commandManagerRef.current.clearRedoStack();
+
                             painting.current = false;
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                         }
@@ -319,6 +330,9 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                                     new ClearShapeCommand({beforeImage: canvasImages.beforeImage, afterImage: canvasImages.afterImage, editorContextRef})
                                 );
 
+                                //Clears the redo stack to avoid conflicts
+                                commandManagerRef.current.clearRedoStack();
+
                                 paintPoints.current = [];
                                 painting.current = false;
                                 overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
@@ -343,6 +357,9 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                             commandManagerRef.current.execute(
                                 new DrawStampCommand({image: stampImage.current, x: guidePoint.x, y: guidePoint.y, width: stampSize[0], height: stampSize[1]})
                             );
+
+                            //Clears the redo stack to avoid conflicts
+                            commandManagerRef.current.clearRedoStack();
                         }
                     }
                     
@@ -601,6 +618,14 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
         commandManagerRef.current.undo();
     }
 
+    /**
+     * Handles a call to redo
+     */
+    const handleRedo = (event) => 
+    {
+        commandManagerRef.current.redo();
+    }
+
     /***********************************************************************
      * 
      * UI
@@ -608,7 +633,12 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
      ***********************************************************************/
     return ( 
         <div>
-            <div style={{border: "solid 5px black", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
+            <div className="tool-bar" style={{maxWidth: "700px"}}>
+                <p>Tool Bar: </p>
+                <button onClick={handleUndo}><img src={UndoIcon} alt="Undo button"></img></button>
+                <button onClick={handleRedo}><img src={RedoIcon} alt="Redo button"></img></button>
+            </div>
+            <div style={{border: "solid 2px black", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
                 <canvas ref={stampCanvasRef} className="stamp-canvas"></canvas>
                 <canvas ref={lineCanvasRef} className="line-canvas"></canvas>
                 <canvas ref={overlayCanvasRef} className="overlay-canvas"></canvas>
@@ -616,10 +646,6 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                 <canvas ref={dotCanvasRef} className="dot-canvas"></canvas>
                 <canvas ref={solidCanvasRef} className="solid-canvas"></canvas>
                 <canvas ref={gridCanvasRef} className="grid-canvas"></canvas>   
-            </div>
-            <div>
-                <p>test</p>
-                <button onClick={handleUndo}>Undo</button>
             </div>
         </div>
     );

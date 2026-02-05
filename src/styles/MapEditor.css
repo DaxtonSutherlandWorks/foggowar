@@ -37,3 +37,19 @@
     position: absolute;
     z-index: 3;
 }
+
+.tool-bar {
+    display: flex;
+    border: 2px black solid;
+    background-color: #e6e6fa
+}
+
+.tool-bar p {
+    padding-inline: 5px;
+}
+
+.tool-bar button {
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+}

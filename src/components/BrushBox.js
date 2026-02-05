@@ -53,20 +53,42 @@ const BrushBox = ({paintMode, paintModeSetter, deleteMode, deleteModeSetter, cur
     }
 
     return ( 
-        <div>
+        <div style={{border: "2px black solid", textAlign: "cetner"}}>
             <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"/>
             
-            <h1>Tools</h1>
-            <button id="line-button" className="icon-button" onClick={handleBrushChange}><img id="line-icon" src={LineIcon} alt="Line Icon"></img></button>
-            <button id="square-button" className="icon-button" onClick={handleBrushChange}><img id="square-icon" src={SquareIcon} alt="Square Icon"></img></button>
-            <button id="circle-button" className="icon-button" onClick={handleBrushChange}><img id="circle-icon" src={CircleIcon} alt="Circle Icon"></img></button>
-            <button id="polygon-button" className="icon-button" onClick={handleBrushChange}><img id="polygon-icon" src={PolygonIcon} alt="Polygon Icon"></img></button>
-            <button id="stamp-button" className="icon-button" onClick={handleBrushChange}><img id="stamp-icon" src={StampIcon} alt="Stamp Icon"></img></button>
-            <p>{paintMode}</p>
+            <div className="brush-grid">
+                <button id="line-button" className="icon-button" onClick={handleBrushChange} style={{backgroundColor: paintMode === "line" ? "#9e9ee2" : "#e6e6fa"}}>
+                    <img id="line-icon" src={LineIcon} alt="Line Icon"></img>
+                </button>
+                <button id="square-button" className="icon-button" onClick={handleBrushChange} style={{backgroundColor: paintMode === "square" ? "#9e9ee2" : "#e6e6fa"}}>
+                    <img id="square-icon" src={SquareIcon} alt="Square Icon"></img>
+                </button>
+                <button id="circle-button" className="icon-button" onClick={handleBrushChange} style={{backgroundColor: paintMode === "circle" ? "#9e9ee2" : "#e6e6fa"}}>
+                    <img id="circle-icon" src={CircleIcon} alt="Circle Icon"></img>
+                </button>
+                <button id="polygon-button" className="icon-button" onClick={handleBrushChange} style={{backgroundColor: paintMode === "polygon" ? "#9e9ee2" : "#e6e6fa"}}>
+                    <img id="polygon-icon" src={PolygonIcon} alt="Polygon Icon"></img>
+                </button>
+                <div className="bottom-button-container">
+                    <button id="stamp-button" className="icon-button" onClick={handleBrushChange} style={{backgroundColor: paintMode === "stamp" ? "#9e9ee2" : "#e6e6fa"}}>
+                        <img id="stamp-icon" src={StampIcon} alt="Stamp Icon"></img>
+                    </button>
+                </div>
+            </div>
+            
             {(paintMode !== "line" && paintMode !== "stamp") && <div>
-                <button id="draw-button"  onClick={handleDeleteChange}>Draw</button>
-                <button id="delete-button" onClick={handleDeleteChange}>Delete</button>
+                <button className="mode-button" id="draw-button" onClick={handleDeleteChange} style={{backgroundColor: deleteMode ? "#e6e6fa" : "#9e9ee2"}}>Draw</button>
+                <button className="mode-button" id="delete-button" onClick={handleDeleteChange} style={{backgroundColor: deleteMode ? "#9e9ee2" : "#e6e6fa"}}>Delete</button>
             </div>}
+
+            <div className="info-box">
+                <p><span>Line:</span> Draw a line from point A to B.</p>
+                <p><span>Rectangle:</span> Clear or fill a rectangle.</p>
+                <p><span>Circle:</span> Clear or fill a cirlce.</p>
+                <p><span>Polygon:</span> Clear or fill a polygon by placing points, ending where you started.</p>
+                <p><span>Stamp:</span> Place a decorative tree in an open tile.</p>
+            </div>
+        
         </div>
      );
 }

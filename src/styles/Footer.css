@@ -1,0 +1,10 @@
+.update-card {
+    background-color: #e6e6fa;
+    margin: 2%;
+    border: 7px double black;
+    border-radius: 20px;
+}
+
+.update-card-inner {
+    margin-inline: 5%;
+}
