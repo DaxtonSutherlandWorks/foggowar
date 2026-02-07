@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
-import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush, isSquareCleared } from "../helpers/BrushUtils";
+import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush, isSquareCleared, findLineAtGuidePoint } from "../helpers/BrushUtils";
 import { DrawLineCommand } from "../classes/DrawLineCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
 import { ClearShapeCommand } from "../classes/ClearShapeCommand";
 import UndoIcon from "../img/undoIcon.svg";
 import RedoIcon from "../img/redoIcon.svg";
+import { DeleteStampCommand } from "../classes/DeleteStampCommand";
+import { DeleteLineCommand } from "../classes/DeleteLineCommand";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -35,6 +37,8 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
     const startCoords = useRef([]);
     const paintPoints = useRef([]);
     const stampImage = useRef(null);
+    const stampId = useRef(1);
+    const lineId = useRef(1);
     const brushColor = useRef("black");
     const brushSize = useRef(3);
     const guideRadius = useRef(2);
@@ -117,7 +121,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
         solidContext.current.fillStyle = "#fdf8f0ff"
         solidContext.current.fillRect(0, 0, solidCanvasRef.current.width, solidCanvasRef.current.width);
 
-        //Listeners are made as class methods so they can be removed before being applied
+       //Listeners are made as class methods so they can be removed before being applied
        //This prevents the confusing and breaking behavior of listeners getting duplicated on a rerender.
        overlayCanvasRef.current.removeEventListener('mousedown', onMouseDown);
        overlayCanvasRef.current.addEventListener('mousedown', onMouseDown);
@@ -193,8 +197,30 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
             switch (paintModeRef.current)
             {
                 case "line":
+
+                    if (deleteModeRef.current)
+                    {
+                        if (guidePoint)
+                        {
+                            const line = findLineAtGuidePoint(
+                                guidePoint.x,
+                                guidePoint.y,
+                                linesRef.current,
+                                16
+                            );
+
+                            if (line)
+                            {
+                                commandManagerRef.current.execute(
+                                    new DeleteLineCommand({id: line.id, x1: line.x1, y1: line.y1, x2: line.x2, y2: line.y2})
+                                );
+                            }
+
+                        }
+                    }
+
                     //First click of stroke
-                    if (!painting.current)
+                    else if (!painting.current)
                     {
                         //If in range of a guide point, snaps to it
                         if (guidePoint)
@@ -213,8 +239,10 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                         {
                             //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
                             commandManagerRef.current.execute(
-                                new DrawLineCommand({x1: startCoords.current[0], y1: startCoords.current[1], x2: guidePoint.x, y2: guidePoint.y})
+                                new DrawLineCommand({id: lineId.current, x1: startCoords.current[0], y1: startCoords.current[1], x2: guidePoint.x, y2: guidePoint.y})
                             )
+
+                            lineId.current = lineId.current + 1;
 
                             //Clears the redo stack to avoid conflicts
                             commandManagerRef.current.clearRedoStack();
@@ -346,17 +374,38 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
 
                     break;
 
-                //TODO: Disallow stamping over a stamp
                 case "stamp":
 
                     if(guidePoint)
                     {
-                        if (isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
+                        if (deleteModeRef.current)
+                        {
+                            for (let i = stampsRef.current.length - 1; i >= 0; i--)
+                            {
+                                if (guidePoint.x >= stampsRef.current[i].x 
+                                    && guidePoint.x <= stampsRef.current[i].x + stampsRef.current[i].width
+                                    && guidePoint.y >= stampsRef.current[i].y
+                                    && guidePoint.y <= stampsRef.current[i].y + stampsRef.current[i].height)
+                                    {
+                                        const stamp = stampsRef.current[i];
+
+                                        commandManagerRef.current.execute(
+                                            new DeleteStampCommand({id: stamp.id, image: stamp.image, x: stamp.x, y: stamp.y, width: stamp.width, height: stamp.height})
+                                        );
+                                    }
+                            }
+
+                            
+                        }
+
+                        else if (isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) && isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
                         {
                             //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
                             commandManagerRef.current.execute(
-                                new DrawStampCommand({image: stampImage.current, x: guidePoint.x, y: guidePoint.y, width: stampSize[0], height: stampSize[1]})
+                                new DrawStampCommand({id: stampId.current, image: stampImage.current, x: guidePoint.x, y: guidePoint.y, width: stampSize[0], height: stampSize[1]})
                             );
+
+                            stampId.current = stampId.current + 1;
 
                             //Clears the redo stack to avoid conflicts
                             commandManagerRef.current.clearRedoStack();
@@ -496,7 +545,6 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                     overlayContext.current.stroke();
                     break;
 
-                //TODO: Disallow stamping over a stamp
                 case "stamp":
 
                     if (guidePoint)
@@ -505,7 +553,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
 
                         overlayContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
                         
-                        if (!isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
+                        if (!isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) || !isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
                         {
                             overlayContext.current.globalCompositeOperation = "source-atop";
                             overlayContext.current.fillStyle = "red";

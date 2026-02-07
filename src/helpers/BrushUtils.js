@@ -75,6 +75,38 @@
     }
 
     /**
+     * Finds the closest line to a given point within a defined tolerance distance.
+     */
+    export const findLineAtGuidePoint = (px, py, linesRef, tolerance) =>
+    {
+        const lines = linesRef;
+
+        let closest = null;
+        let bestDist = Infinity;
+
+        //Checks each drawn line to find the closest
+        for (let i = lines.length - 1; i >= 0; i--) {
+            const line = lines[i];
+
+            const dist = pointToSegmentDistance(
+                px,
+                py,
+                line.x1,
+                line.y1,
+                line.x2,
+                line.y2
+            );
+
+            if (dist <= tolerance && dist < bestDist) {
+                closest = line;
+                bestDist = dist;
+            }
+        }
+
+        return closest;
+    }
+
+    /**
      * Determines which pixels became empty after a brush stroke, and which are touching parts of the solid canvas' rectangle that still exist.
      * 
      * Before and after are image data, Uint8ClampedArrays to be precise, they are formatted as:
@@ -213,6 +245,40 @@
     }
 
     /**
+     * Calculates distance from a given point to a line segment
+     */
+    export const pointToSegmentDistance = (px, py, x1, y1, x2, y2) =>
+    {
+        //Calculates distance vectors
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+
+        //Checks if line is just a point to avoid dividing by zero later.
+        if (dx === 0 && dy === 0)
+        {
+            return Math.hypot(px -x1, py - y1);
+        }
+
+        //This calculates the position along the line by calculating the vectors
+        //from the start to the click, then normalizing by line length, then clamps to the nearest segment endpoint if needed.
+        const t = Math.max(
+            0,
+            Math.min(
+                        1,
+                        ((px - x1) * dx + (py - y1) * dy) /
+                        (dx * dx + dy * dy)
+                    )
+        );
+
+        //Computes nearest point on this segment
+        const cx = x1 + t * dx;
+        const cy = y1 + t * dy;
+
+        //Returns the distance of the click to the nearest point on the line.
+        return Math.hypot(px - cx, py - cy);
+    }
+
+    /**
      * Scans the solid canvas image and returns all border edge pixels.
      * Border pixels are solid pixels that touch at least one clear neighbor.
      */
@@ -265,10 +331,13 @@
     /**
      * Clears or fills a circle from the solid canvas and all engulfed borders from the border canvas
      */
-    export const clearCircle = (solidContext, borderContext, x, y, r, deletion) =>
+    export const clearCircle = (solidContext, borderContext, lineContext, x, y, r, deletion) =>
     {
-        solidContext.save()
-        borderContext.save()
+        solidContext.save();
+        borderContext.save();
+        lineContext.save();
+
+        lineContext.globalCompositeOperation = "destination-out";
 
         if (deletion)
         {
@@ -292,6 +361,11 @@
         solidContext.arc(x, y, r, 0, Math.PI * 2);
         solidContext.fill();
 
+        //Clears engulfed lines
+        lineContext.beginPath();
+        lineContext.arc(x, y, r, 0, Math.PI * 2);
+        lineContext.fill();
+
         solidContext.restore();
         borderContext.restore();
     }
@@ -299,10 +373,13 @@
     /**
      * Clears or fills a polygon from the solid canvas and all engulfed borders from the border canvas.
      */
-    export const clearPolygon = (solidContext, borderContext, paintPoints, deletion) =>
+    export const clearPolygon = (solidContext, borderContext, lineContext, paintPoints, deletion) =>
     {
-        solidContext.save()
-        borderContext.save()
+        solidContext.save();
+        borderContext.save();
+        lineContext.save();
+
+        lineContext.globalCompositeOperation = "destination-out";
 
         if (deletion)
         {
@@ -340,17 +417,33 @@
         solidContext.closePath();
         solidContext.fill();
 
+        //Clears the polygon from the line canvas by filling it with transparency
+        lineContext.beginPath();
+        lineContext.moveTo(paintPoints[0].x, paintPoints[0].y)
+
+        for (let i = 1; i < paintPoints.length; i++)
+        {
+            lineContext.lineTo(paintPoints[i].x, paintPoints[i].y);
+        }
+
+        lineContext.closePath();
+        lineContext.fill();
+
         solidContext.restore();
         borderContext.restore();
+        lineContext.restore();
     }
 
     /**
      * Clears or fills a rectangle from the solid canvas
      */
-    export const clearRectangle = (solidContext, borderContext, startX, startY, width, height, deletion) =>
+    export const clearRectangle = (solidContext, borderContext, lineContext, startX, startY, width, height, deletion) =>
     {
-        solidContext.save()
-        borderContext.save()
+        solidContext.save();
+        borderContext.save();
+        lineContext.save();
+
+        lineContext.globalCompositeOperation = "destination-out";
 
         if (deletion)
         {
@@ -366,9 +459,11 @@
 
         //Clears the rectangle from the solid canvas by filling it with transparency
         solidContext.fillRect(startX, startY, width, height);
+        lineContext.fillRect(startX, startY, width, height);
 
         solidContext.restore();
         borderContext.restore();
+        lineContext.restore();
     }
 
     /** *************************************************************************
@@ -386,7 +481,7 @@
         //Grabs the image data of the area before fulfilling the stroke
         const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
         
-        clearCircle(editorContext.solidContext.current, editorContext.borderContext.current, x, y, r, deletion);
+        clearCircle(editorContext.solidContext.current, editorContext.borderContext.current, editorContext.lineContext.current, x, y, r, deletion);
 
         //Grabs the image data of the area after fulfilling the stroke
         const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
@@ -409,7 +504,7 @@
         //Grabs the image data of the area before fulfilling the stroke
         const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
         
-        clearPolygon(editorContext.solidContext.current, editorContext.borderContext.current, paintPoints, deletion);
+        clearPolygon(editorContext.solidContext.current, editorContext.borderContext.current, editorContext.lineContext.current, paintPoints, deletion);
 
         //Grabs the image data of the area after fulfilling the stroke
         const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
@@ -433,7 +528,7 @@
                                    
         const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
 
-        clearRectangle(editorContext.solidContext.current, editorContext.borderContext.current, rect.x, rect.y, rect.w, rect.h, deletion);
+        clearRectangle(editorContext.solidContext.current, editorContext.borderContext.current, editorContext.lineContext.current, rect.x, rect.y, rect.w, rect.h, deletion);
 
         const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
 
@@ -462,17 +557,25 @@
         const canvasLines = editorContext.linesRef.current;
         const lineContext = lineCanvas.getContext("2d");
 
+        lineContext.save();
 
         if (!fullRedraw)
         {
             //Gets newest line
             const line = canvasLines[canvasLines.length - 1]
 
+            lineContext.strokeStyle = "black";
+            lineContext.lineWidth = 3;
+
+            if (line.deleteMode)
+            {
+                lineContext.globalCompositeOperation = "destination-out";
+                lineContext.lineWidth = 5;
+            }
+
             lineContext.beginPath();
             lineContext.moveTo(line.x1, line.y1);
             lineContext.lineTo(line.x2, line.y2);
-            lineContext.strokeStyle = "black";
-            lineContext.lineWidth = 3;
             lineContext.stroke();
         }
 
@@ -484,6 +587,16 @@
             //Redraws all remaining lines from data
             for (const line of editorContext.linesRef.current)
             {
+
+                lineContext.strokeStyle = "black";
+                lineContext.lineWidth = 3;
+
+                if (line.deleteMode)
+                {
+                    lineContext.globalCompositeOperation = "destination-out";
+                    lineContext.lineWidth = 5;
+                }
+
                 lineContext.beginPath();
                 lineContext.moveTo(line.x1, line.y1);
                 lineContext.lineTo(line.x2, line.y2);
@@ -492,6 +605,8 @@
                 lineContext.stroke();
             }
         } 
+
+        lineContext.restore();
     }
 
     /**
@@ -509,7 +624,15 @@
             //Gets newest stamp
             const stamp = canvasStamps[canvasStamps.length - 1]
 
-            stampContext.drawImage(stamp.image, stamp.x, stamp.y, stamp.width, stamp.height);
+            if (stamp.deleteMode)
+            {
+                stampContext.clearRect(stamp.x, stamp.y, stamp.width, stamp.height);
+            }
+            else
+            {
+                stampContext.drawImage(stamp.image, stamp.x, stamp.y, stamp.width, stamp.height);
+            }
+            
         }
 
         else
@@ -520,7 +643,14 @@
             //Redraws all remaining lines from data
             for (const stamp of editorContext.stampsRef.current)
             {
-                stampContext.drawImage(stamp.image, stamp.x, stamp.y, stamp.width, stamp.height);
+                if (stamp.deleteMode)
+                {
+                    stampContext.clearRect(stamp.x, stamp.y, stamp.width, stamp.height);
+                }
+                else
+                {
+                    stampContext.drawImage(stamp.image, stamp.x, stamp.y, stamp.width, stamp.height);
+                }
             }
         } 
     }

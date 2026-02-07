@@ -10,6 +10,8 @@ const Footer = () => {
                     <a href="https://www.daxtonsutherlandworks.com/">Portfolio Website</a>
                     <p style={{margin: "0px", marginInline: "5px"}}>---</p>
                     <a href="https://www.linkedin.com/in/daxtons/">LinkedIn</a>
+                    <p style={{margin: "0px", marginInline: "5px"}}>---</p>
+                    <a href="">V0.1.0 Source Code</a>
                 </div>
             </div>
             <div className="update-card">
@@ -22,7 +24,7 @@ const Footer = () => {
                     </p>
                     <p>
                         For now, this just a public demo with very limited UI beyond the map designer. It is locked to a 10x10 grid, there are no fancy visuals, and the purple on green background is a... Bold, visual choice though unsuprising if you're familiar with my other projects.
-                        Really, the more interesting bits of this version are in the source code, because everything you see here is scalable and designed to complement other parts of this project I have planned. I invite you to tinker around with my little project here, and feel free to have a look at my source code down below.
+                        Really, the more interesting bits of this version are in the source code, because everything you see here is scalable and designed to complement other parts of this project I have planned. I invite you to tinker around with my little project here, and feel free to have a look at my source code up above.
                     </p>
                     <h4>V0.1.0 Features:</h4>
                     <ul>

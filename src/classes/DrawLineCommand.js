@@ -6,7 +6,7 @@ import { Command } from "./Command";
  */
 export class DrawLineCommand extends Command {
     
-    // line = {x1, y1, x2, y2}
+    // line = {id, x1, y1, x2, y2}
     constructor(line) 
     {
         super();

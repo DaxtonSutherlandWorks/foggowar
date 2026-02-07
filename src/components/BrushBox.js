@@ -76,10 +76,10 @@ const BrushBox = ({paintMode, paintModeSetter, deleteMode, deleteModeSetter, cur
                 </div>
             </div>
             
-            {(paintMode !== "line" && paintMode !== "stamp") && <div>
+            <div>
                 <button className="mode-button" id="draw-button" onClick={handleDeleteChange} style={{backgroundColor: deleteMode ? "#e6e6fa" : "#9e9ee2"}}>Draw</button>
                 <button className="mode-button" id="delete-button" onClick={handleDeleteChange} style={{backgroundColor: deleteMode ? "#9e9ee2" : "#e6e6fa"}}>Delete</button>
-            </div>}
+            </div>
 
             <div className="info-box">
                 <p><span>Line:</span> Draw a line from point A to B.</p>
