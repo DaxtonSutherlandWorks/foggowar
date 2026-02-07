@@ -431,7 +431,9 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
 
         const guidePoint = nearestGuidePoint(x, y, tileSize, snapDistance.current);
 
-        drawHoverGuide(overlayContext, guidePoint);
+        drawHoverGuide(overlayContext, guidePoint, deleteModeRef.current);
+
+        overlayContext.current.save();
 
          switch (paintModeRef.current)
             {
@@ -443,7 +445,6 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                         return;
                     }
 
-                    overlayContext.current.save();
                     overlayContext.current.beginPath();
                     overlayContext.current.moveTo(startCoords.current[0], startCoords.current[1]);
                     overlayContext.current.lineTo(event.offsetX, event.offsetY);
@@ -460,7 +461,6 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                     }
 
                     overlayContext.current.stroke();
-                    overlayContext.current.restore();
                     break;
 
                 case "square":
@@ -478,11 +478,25 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
+                        if (deleteModeRef.current)
+                        {
+                            overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)"
+                        }
+                        else
+                        {
+                            overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
+                        }
                     }
                     else
                     {
-                        overlayContext.current.strokeStyle = brushColor.current;
+                        if (deleteModeRef.current)
+                        {   
+                            overlayContext.current.strokeStyle = "red";
+                        }
+                        else
+                        {
+                            overlayContext.current.strokeStyle = brushColor.current;
+                        }
                     }
 
                     overlayContext.current.stroke();
@@ -503,11 +517,25 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
+                        if (deleteModeRef.current)
+                        {
+                            overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)"
+                        }
+                        else
+                        {
+                            overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
+                        }
                     }
                     else
                     {
-                        overlayContext.current.strokeStyle = brushColor.current;
+                        if (deleteModeRef.current)
+                        {   
+                            overlayContext.current.strokeStyle = "red";
+                        }
+                        else
+                        {
+                            overlayContext.current.strokeStyle = brushColor.current;
+                        }
                     }
 
                     overlayContext.current.stroke();
@@ -526,11 +554,25 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                     //Changes preview line color based on if it has a valid placement
                     if(!guidePoint)
                     {
-                        overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
+                        if (deleteModeRef.current)
+                        {
+                            overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)"
+                        }
+                        else
+                        {
+                            overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
+                        }
                     }
                     else
                     {
-                        overlayContext.current.strokeStyle = brushColor.current;
+                        if (deleteModeRef.current)
+                        {   
+                            overlayContext.current.strokeStyle = "red";
+                        }
+                        else
+                        {
+                            overlayContext.current.strokeStyle = brushColor.current;
+                        }
                     }
 
                     overlayContext.current.beginPath();
@@ -547,9 +589,8 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
 
                 case "stamp":
 
-                    if (guidePoint)
+                    if (guidePoint && !deleteModeRef.current)
                     {
-                        overlayContext.current.save();
 
                         overlayContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
                         
@@ -560,7 +601,6 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                             overlayContext.current.fillRect(guidePoint.x + 6, guidePoint.y, stampSize[0], stampSize[1]);
                         }
                         
-                        overlayContext.current.restore();
                     }
                     
                     break;
@@ -568,6 +608,8 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                 default:
                     return;
             }
+
+            overlayContext.current.restore();
     }
 
     /**
@@ -642,7 +684,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
     /**
      * Draws a larger dot over a guide dot to denote which dot is closest to the cursor
      */
-    const drawHoverGuide = (context, dot) =>
+    const drawHoverGuide = (context, dot, deleteMode) =>
     {
         //Clears the canvas of previous guide dot and preview
         context.current.clearRect(0, 0, context.current.canvas.width, context.current.canvas.height);
@@ -650,8 +692,16 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
         //Aborts if somehow no dot was provided
         if (!dot) return;
 
-        context.current.fillStyle = "#000000ff";
+        if (deleteMode)
+        {
+            context.current.fillStyle = "red";
+        }
 
+        else
+        {
+            context.current.fillStyle = "#000000ff";
+        }
+        
         //Draws the new guide dot
         context.current.beginPath();
         context.current.arc(dot.x, dot.y, guideHoverRadius.current, 0, Math.PI * 2);

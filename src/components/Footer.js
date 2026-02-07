@@ -16,7 +16,7 @@ const Footer = () => {
             </div>
             <div className="update-card">
                 <div className="update-card-inner">
-                    <h1>V0.1.0 - DATE</h1>
+                    <h1>V0.1.0 - 2/8/26</h1>
                     <p>
                         Welcome to the very first version of Foggowar! Foggowar is a personal project I am putting together that is all about designing, sharing, and using custom table top roleplaying game maps
                         with an emphasis on line of sight and object travesability. Though it is only a small frontend demo of a limited size map maker now, I plan to add many extensive features that I will be keeping

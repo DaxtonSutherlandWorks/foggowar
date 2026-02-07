@@ -6,7 +6,7 @@ import PolygonIcon from "../img/polygonIcon.svg"
 import StampIcon from "../img/stampIcon.svg"
 
 
-const BrushBox = ({paintMode, paintModeSetter, deleteMode, deleteModeSetter, currStamp, setCurrStamp}) => {
+const BrushBox = ({paintMode, paintModeSetter, deleteMode, deleteModeSetter}) => {
 
     /**
      * Changes the parent paintMode useState to match user brush selection
