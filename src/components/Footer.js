@@ -11,7 +11,7 @@ const Footer = () => {
                     <p style={{margin: "0px", marginInline: "5px"}}>---</p>
                     <a href="https://www.linkedin.com/in/daxtons/">LinkedIn</a>
                     <p style={{margin: "0px", marginInline: "5px"}}>---</p>
-                    <a href="">V0.1.0 Source Code</a>
+                    <a href="https://github.com/DaxtonSutherlandWorks/foggowar">V0.1.0 Source Code</a>
                 </div>
             </div>
             <div className="update-card">
