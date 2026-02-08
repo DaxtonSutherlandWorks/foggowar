@@ -11,7 +11,7 @@ import { DeleteStampCommand } from "../classes/DeleteStampCommand";
 import { DeleteLineCommand } from "../classes/DeleteLineCommand";
 
 //Set up as class in order to access React.createRef
-const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, tileSize}) => {
+const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, currStamp, stampSize, tileSize}) => {
 
     //Canvas Refs
     const lineCanvasRef = useRef(null);
@@ -33,7 +33,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
 
     const paintModeRef = useRef(paintMode);
     const deleteModeRef = useRef(deleteMode);
-    const painting = useRef(false);
+    const paintingRef = useRef(painting);
     const startCoords = useRef([]);
     const paintPoints = useRef([]);
     const stampImage = useRef(null);
@@ -163,6 +163,15 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
     }, [deleteMode]);
 
     /**
+     * 
+     */
+    useEffect(() => {
+
+        paintingRef.current = painting;
+
+    }, [painting]);
+
+    /**
      * Loads the current stamp into an image that can be drawn on a canvas
      */
     const loadStamp = (path) =>
@@ -220,12 +229,12 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                     }
 
                     //First click of stroke
-                    else if (!painting.current)
+                    else if (!paintingRef.current)
                     {
                         //If in range of a guide point, snaps to it
                         if (guidePoint)
                         {
-                            painting.current = true;
+                            setPainting(true);
                             startCoords.current = [guidePoint.x, guidePoint.y];
                         }
                         
@@ -247,7 +256,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                             //Clears the redo stack to avoid conflicts
                             commandManagerRef.current.clearRedoStack();
 
-                            painting.current = false;
+                            setPainting(false);
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                         }
                     }
@@ -256,12 +265,12 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                 case "square":
                     
                     //First click of stroke
-                    if (!painting.current)
+                    if (!paintingRef.current)
                     {
                         //If in range of a guide point, snaps to it
                         if (guidePoint)
                         {
-                            painting.current = true;
+                            setPainting(true);
                             startCoords.current = [guidePoint.x, guidePoint.y];
                         }
                         
@@ -287,7 +296,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                             //Clears the redo stack to avoid conflicts
                             commandManagerRef.current.clearRedoStack();
 
-                            painting.current = false;
+                            setPainting(false);
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width)
 
                         }
@@ -297,12 +306,12 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                 case "circle":
                     
                     //First click of stroke
-                    if (!painting.current)
+                    if (!paintingRef.current)
                     {
                         //If in range of a guide point, snaps to it
                         if (guidePoint)
                         {
-                            painting.current = true;
+                            setPainting(true);
                             startCoords.current = [guidePoint.x, guidePoint.y];
                         }
                         
@@ -327,7 +336,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                             //Clears the redo stack to avoid conflicts
                             commandManagerRef.current.clearRedoStack();
 
-                            painting.current = false;
+                            setPainting(false);
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                         }
                     }
@@ -343,7 +352,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                         if (paintPoints.current.length === 0)
                         {
                             paintPoints.current = [...paintPoints.current, guidePoint];
-                            painting.current = true;
+                            setPainting(true);
                         }
 
                         else
@@ -362,7 +371,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                                 commandManagerRef.current.clearRedoStack();
 
                                 paintPoints.current = [];
-                                painting.current = false;
+                                setPainting(false);
                                 overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                             }
                             else
@@ -440,7 +449,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                 case "line":
 
                     //Ignore movements unless painting
-                    if (!painting.current)
+                    if (!paintingRef.current)
                     {
                         return;
                     }
@@ -466,7 +475,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                 case "square":
 
                     //Ignore movements unless painting
-                    if (!painting.current)
+                    if (!paintingRef.current)
                     {
                         return;
                     }
@@ -505,7 +514,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                 case "circle":
 
                     //Ignore movements unless painting
-                    if (!painting.current)
+                    if (!paintingRef.current)
                     {
                         return;
                     }
@@ -544,7 +553,7 @@ const MapEditor = ({dimensions, paintMode, deleteMode, currStamp, stampSize, til
                 case "polygon":
                     
                     //Ignore movements unless painting
-                    if (!painting.current)
+                    if (!paintingRef.current)
                     {
                         return;
                     }

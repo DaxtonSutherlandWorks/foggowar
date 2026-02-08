@@ -24,9 +24,6 @@
 .brush-grid {
     display: grid;
     text-align: center;
-    align-items: center;
-    align-content: center;
-    justify-content: center;
     place-items: center;
     grid-template-columns: 1fr 1fr;
     max-width: 300px;
