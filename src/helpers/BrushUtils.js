@@ -331,13 +331,10 @@
     /**
      * Clears or fills a circle from the solid canvas and all engulfed borders from the border canvas
      */
-    export const clearCircle = (solidContext, borderContext, lineContext, x, y, r, deletion) =>
+    export const clearCircle = (solidContext, borderContext, x, y, r, deletion) =>
     {
         solidContext.save();
         borderContext.save();
-        lineContext.save();
-
-        lineContext.globalCompositeOperation = "destination-out";
 
         if (deletion)
         {
@@ -361,11 +358,6 @@
         solidContext.arc(x, y, r, 0, Math.PI * 2);
         solidContext.fill();
 
-        //Clears engulfed lines
-        lineContext.beginPath();
-        lineContext.arc(x, y, r, 0, Math.PI * 2);
-        lineContext.fill();
-
         solidContext.restore();
         borderContext.restore();
     }
@@ -373,13 +365,10 @@
     /**
      * Clears or fills a polygon from the solid canvas and all engulfed borders from the border canvas.
      */
-    export const clearPolygon = (solidContext, borderContext, lineContext, paintPoints, deletion) =>
+    export const clearPolygon = (solidContext, borderContext, paintPoints, deletion) =>
     {
         solidContext.save();
         borderContext.save();
-        lineContext.save();
-
-        lineContext.globalCompositeOperation = "destination-out";
 
         if (deletion)
         {
@@ -417,33 +406,17 @@
         solidContext.closePath();
         solidContext.fill();
 
-        //Clears the polygon from the line canvas by filling it with transparency
-        lineContext.beginPath();
-        lineContext.moveTo(paintPoints[0].x, paintPoints[0].y)
-
-        for (let i = 1; i < paintPoints.length; i++)
-        {
-            lineContext.lineTo(paintPoints[i].x, paintPoints[i].y);
-        }
-
-        lineContext.closePath();
-        lineContext.fill();
-
         solidContext.restore();
         borderContext.restore();
-        lineContext.restore();
     }
 
     /**
      * Clears or fills a rectangle from the solid canvas
      */
-    export const clearRectangle = (solidContext, borderContext, lineContext, startX, startY, width, height, deletion) =>
+    export const clearRectangle = (solidContext, borderContext, startX, startY, width, height, deletion) =>
     {
         solidContext.save();
         borderContext.save();
-        lineContext.save();
-
-        lineContext.globalCompositeOperation = "destination-out";
 
         if (deletion)
         {
@@ -459,11 +432,9 @@
 
         //Clears the rectangle from the solid canvas by filling it with transparency
         solidContext.fillRect(startX, startY, width, height);
-        lineContext.fillRect(startX, startY, width, height);
 
         solidContext.restore();
         borderContext.restore();
-        lineContext.restore();
     }
 
     /** *************************************************************************
@@ -481,7 +452,7 @@
         //Grabs the image data of the area before fulfilling the stroke
         const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
         
-        clearCircle(editorContext.solidContext.current, editorContext.borderContext.current, editorContext.lineContext.current, x, y, r, deletion);
+        clearCircle(editorContext.solidContext.current, editorContext.borderContext.current, x, y, r, deletion);
 
         //Grabs the image data of the area after fulfilling the stroke
         const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
@@ -504,7 +475,7 @@
         //Grabs the image data of the area before fulfilling the stroke
         const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
         
-        clearPolygon(editorContext.solidContext.current, editorContext.borderContext.current, editorContext.lineContext.current, paintPoints, deletion);
+        clearPolygon(editorContext.solidContext.current, editorContext.borderContext.current, paintPoints, deletion);
 
         //Grabs the image data of the area after fulfilling the stroke
         const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
@@ -528,7 +499,7 @@
                                    
         const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
 
-        clearRectangle(editorContext.solidContext.current, editorContext.borderContext.current, editorContext.lineContext.current, rect.x, rect.y, rect.w, rect.h, deletion);
+        clearRectangle(editorContext.solidContext.current, editorContext.borderContext.current, rect.x, rect.y, rect.w, rect.h, deletion);
 
         const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
 
