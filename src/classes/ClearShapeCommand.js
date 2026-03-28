@@ -1,4 +1,4 @@
-import { drawEdgeDots, recomputeBorders } from "../helpers/BrushUtils";
+import { rebuildSolidCanvas } from "../helpers/BrushUtils";
 import { Command } from "./Command";
 
 /**
@@ -7,26 +7,23 @@ import { Command } from "./Command";
  */
 export class ClearShapeCommand extends Command {
   
-    constructor({ beforeImage, afterImage, editorContextRef }) 
+    constructor({ shape, editorContextRef }) 
     {
         super();
         
-        this.before = beforeImage;
-        this.after = afterImage;
+        this.shape = shape;
         this.editor = editorContextRef.current;
     }
 
     execute() 
     {
-        this.editor.solidContext.current.putImageData(this.after, 0, 0);
-        const edges = recomputeBorders(this.editor, this.after);
-        drawEdgeDots(this.editor.borderContext.current, edges, 3)
+        this.editor.shapesRef.current.push(this.shape);
+        rebuildSolidCanvas(this.editor);
     }
 
     undo() 
     {
-        this.editor.solidContext.current.putImageData(this.before, 0, 0);
-        const edges = recomputeBorders(this.editor, this.before);
-        drawEdgeDots(this.editor.borderContext.current, edges, 3);
+        this.editor.shapesRef.current = this.editor.shapesRef.current.filter(s => s.id !== this.shape.id);
+        rebuildSolidCanvas(this.editor);
     }
 }

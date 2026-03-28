@@ -329,70 +329,49 @@
      * **************************************************************************/
 
     /**
-     * Clears or fills a circle from the solid canvas and all engulfed borders from the border canvas
+     * Clears or fills a circle from the solid canvas
      */
-    export const clearCircle = (solidContext, borderContext, x, y, r, deletion) =>
+    export const clearCircle = (solidContext, shape) =>
     {
         solidContext.save();
-        borderContext.save();
 
-        if (deletion)
+        if (shape.deletion)
         {
             solidContext.fillStyle = "#fdf8f0ff";
-            borderContext.fillStyle = "#fdf8f0ff";
         }
         else
         {
             //This line means that now wherever we draw, it will remove whatever was already there
             solidContext.globalCompositeOperation = "destination-out";
-            borderContext.globalCompositeOperation = "destination-out";
         }
-
-        //Clears engulfed borders
-        borderContext.beginPath();
-        borderContext.arc(x, y, r, 0, Math.PI * 2);
-        borderContext.fill();
 
         //Clears the circle from the solid canvas by filling it with transparency
         solidContext.beginPath();
-        solidContext.arc(x, y, r, 0, Math.PI * 2);
+        solidContext.arc(shape.x, shape.y, shape.r, 0, Math.PI * 2);
         solidContext.fill();
 
         solidContext.restore();
-        borderContext.restore();
+
     }
 
     /**
-     * Clears or fills a polygon from the solid canvas and all engulfed borders from the border canvas.
+     * Clears or fills a polygon from the solid canvas
      */
-    export const clearPolygon = (solidContext, borderContext, paintPoints, deletion) =>
+    export const clearPolygon = (solidContext, shape) =>
     {
         solidContext.save();
-        borderContext.save();
 
-        if (deletion)
+        if (shape.deletion)
         {
             solidContext.fillStyle = "#fdf8f0ff";
-            borderContext.fillStyle = "#fdf8f0ff";
         }
         else
         {
             //This line means that now wherever we draw, it will remove whatever was already there
             solidContext.globalCompositeOperation = "destination-out";
-            borderContext.globalCompositeOperation = "destination-out";
         }
 
-        //Clears engulfed borders
-        borderContext.beginPath();
-        borderContext.moveTo(paintPoints[0].x, paintPoints[0].y)
-
-        for (let i = 1; i < paintPoints.length; i++)
-        {
-            borderContext.lineTo(paintPoints[i].x, paintPoints[i].y);
-        }
-
-        borderContext.closePath();
-        borderContext.fill();
+        const paintPoints = shape.points;
 
         //Clears the polygon from the solid canvas by filling it with transparency
         solidContext.beginPath();
@@ -407,111 +386,30 @@
         solidContext.fill();
 
         solidContext.restore();
-        borderContext.restore();
     }
 
     /**
      * Clears or fills a rectangle from the solid canvas
      */
-    export const clearRectangle = (solidContext, borderContext, startX, startY, width, height, deletion) =>
+    export const clearRectangle = (solidContext, shape) =>
     {
         solidContext.save();
-        borderContext.save();
 
-        if (deletion)
+        if (shape.deletion)
         {
             solidContext.fillStyle = "#fdf8f0ff";
-            borderContext.fillStyle = "#fdf8f0ff";
         }
         else
         {
             //This line means that now wherever we draw, it will remove whatever was already there
             solidContext.globalCompositeOperation = "destination-out";
-            borderContext.globalCompositeOperation = "destination-out";
         }
 
         //Clears the rectangle from the solid canvas by filling it with transparency
-        solidContext.fillRect(startX, startY, width, height);
+        solidContext.fillRect(shape.x, shape.y, shape.width, shape.height);
 
         solidContext.restore();
-        borderContext.restore();
     }
-
-    /** *************************************************************************
-     * 
-     * Brush Applicators
-     * 
-     * **************************************************************************/
-
-    /**
-     * Calls all the helpers used to carry out a user confirming their circle stroke
-     */
-    export const applyCircleBrush = (editorContext, x, y, r, deletion) =>
-    {
-
-        //Grabs the image data of the area before fulfilling the stroke
-        const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
-        
-        clearCircle(editorContext.solidContext.current, editorContext.borderContext.current, x, y, r, deletion);
-
-        //Grabs the image data of the area after fulfilling the stroke
-        const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
-
-        //Calculates the new borders
-        const edges = recomputeBorders(editorContext, afterImage);
-
-        //Draws new borders
-        drawEdgeDots(editorContext.borderContext.current, edges, 3);
-
-        return {beforeImage, afterImage};
-    }
-
-    /**
-     * Calls all the helpers used to carry out a user confirming their polygon stroke
-     */
-    export const applyPolygonBrush = (editorContext, paintPoints, deletion) =>
-    {
-
-        //Grabs the image data of the area before fulfilling the stroke
-        const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
-        
-        clearPolygon(editorContext.solidContext.current, editorContext.borderContext.current, paintPoints, deletion);
-
-        //Grabs the image data of the area after fulfilling the stroke
-        const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
-
-        //Calculates the new borders
-        const edges = recomputeBorders(editorContext, afterImage);
-
-        //Draws new borders
-        drawEdgeDots(editorContext.borderContext.current, edges, 3);
-
-        return {beforeImage, afterImage};
-        
-    }
-    
-    /**
-     * Calls all the helpers used to carry out a user confirming their square stroke
-     */
-    export const applySquareBrush = (editorContext, x1, y1, x2, y2, deletion) =>
-    {
-        const rect = normalizeRectangleCoords(x1, y1, x2, y2);
-                                   
-        const beforeImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
-
-        clearRectangle(editorContext.solidContext.current, editorContext.borderContext.current, rect.x, rect.y, rect.w, rect.h, deletion);
-
-        const afterImage = editorContext.solidContext.current.getImageData(0, 0, editorContext.solidCanvasRef.current.width, editorContext.solidCanvasRef.current.height);
-
-        //Calculates the new borders
-        const edges = recomputeBorders(editorContext, afterImage);
-
-        //Draws new borders
-        drawEdgeDots(editorContext.borderContext.current, edges, 3);
-
-        return {beforeImage, afterImage};
-    }
-
 
     /** *************************************************************************
      * 
@@ -624,4 +522,50 @@
                 }
             }
         } 
+    }
+
+    export const rebuildSolidCanvas = (editorContext) =>
+    {
+        const solidContext = editorContext.solidContext.current;
+        const shapes = editorContext.shapesRef.current;
+        const canvasWidth = editorContext.solidCanvasRef.current.width;
+        const canvasHeight = editorContext.solidCanvasRef.current.height;
+
+        solidContext.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        solidContext.fillStyle = "#fdf8f0ff";
+        solidContext.fillRect(0, 0, canvasWidth, canvasHeight);
+
+        for (const shape of shapes)
+        {
+            drawShape(solidContext, shape);
+        }
+
+        const imageData = solidContext.getImageData(0, 0, canvasWidth, canvasHeight);
+
+        const edges = recomputeBorders(editorContext, imageData);
+
+        drawEdgeDots(editorContext.borderContext.current, edges, 3);
+
+    }
+
+    export const drawShape = (context, shape) =>
+    {
+        switch (shape.type)
+        {
+            case "rectangle":
+                clearRectangle(context, shape);
+                break;
+
+            case "circle":
+                clearCircle(context, shape);
+                break;
+
+            case "polygon":
+                clearPolygon(context, shape);
+                break;
+
+            default:
+                break;
+        }
     }
