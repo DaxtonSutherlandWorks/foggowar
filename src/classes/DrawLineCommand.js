@@ -1,4 +1,5 @@
 import { updateLines } from "../helpers/BrushUtils";
+import { addLine, deleteLine } from "../helpers/MapState";
 import { Command } from "./Command";
 
 /**
@@ -15,13 +16,13 @@ export class DrawLineCommand extends Command {
 
     execute(editorContext) 
     {
-        editorContext.linesRef.current.push(this.line);
+        addLine(editorContext.mapStateRef.current, this.line);
         updateLines(editorContext, false);
     }
 
     undo(editorContext) 
     {
-        editorContext.linesRef.current.pop();
+        deleteLine(editorContext.mapStateRef.current, this.line);
         updateLines(editorContext, true);
     }
 }

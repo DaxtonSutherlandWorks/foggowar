@@ -1,12 +1,12 @@
 import { updateStamps } from "../helpers/BrushUtils";
+import { addStamp, deleteStamp } from "../helpers/MapState";
 import { Command } from "./Command";
 
 /**
  * Represents a user command to draw a stamp, with functionality to undo/redo
  */
 export class DrawStampCommand extends Command {
-    
-    // stamp = {id, image, x, y, width, height}
+
     constructor(stamp) 
     {
         super();
@@ -15,13 +15,13 @@ export class DrawStampCommand extends Command {
 
     execute(editorContext) 
     {
-        editorContext.stampsRef.current.push(this.stamp);
+        addStamp(editorContext.mapStateRef.current, this.stamp);
         updateStamps(editorContext, false);
     }
 
     undo(editorContext) 
     {
-        editorContext.stampsRef.current.pop();
+        deleteStamp(editorContext.mapStateRef.current, this.stamp);
         updateStamps(editorContext, true);
     }
 }

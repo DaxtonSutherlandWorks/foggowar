@@ -1,4 +1,5 @@
 import { rebuildSolidCanvas } from "../helpers/BrushUtils";
+import { addShape, deleteShape } from "../helpers/MapState";
 import { Command } from "./Command";
 
 /**
@@ -7,23 +8,22 @@ import { Command } from "./Command";
  */
 export class ClearShapeCommand extends Command {
   
-    constructor({ shape, editorContextRef }) 
+    constructor(shape) 
     {
         super();
         
         this.shape = shape;
-        this.editor = editorContextRef.current;
     }
 
-    execute() 
+    execute(editorContext) 
     {
-        this.editor.shapesRef.current.push(this.shape);
-        rebuildSolidCanvas(this.editor);
+        addShape(editorContext.mapStateRef.current, this.shape);
+        rebuildSolidCanvas(editorContext);
     }
 
-    undo() 
+    undo(editorContext) 
     {
-        this.editor.shapesRef.current = this.editor.shapesRef.current.filter(s => s.id !== this.shape.id);
-        rebuildSolidCanvas(this.editor);
+        deleteShape(editorContext.mapStateRef.current, this.shape);
+        rebuildSolidCanvas(editorContext);
     }
 }

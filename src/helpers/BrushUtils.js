@@ -423,7 +423,7 @@
     export const updateLines = (editorContext, fullRedraw) =>
     {
         const lineCanvas = editorContext.lineCanvasRef.current;
-        const canvasLines = editorContext.linesRef.current;
+        const canvasLines = editorContext.mapStateRef.current.lines;
         const lineContext = lineCanvas.getContext("2d");
 
         lineContext.save();
@@ -454,7 +454,7 @@
             lineContext.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
 
             //Redraws all remaining lines from data
-            for (const line of editorContext.linesRef.current)
+            for (const line of editorContext.mapStateRef.current.lines)
             {
 
                 lineContext.strokeStyle = "black";
@@ -484,7 +484,7 @@
     export const updateStamps = (editorContext, fullRedraw) =>
     {
         const stampCanvas = editorContext.stampCanvasRef.current;
-        const canvasStamps = editorContext.stampsRef.current;
+        const canvasStamps = editorContext.mapStateRef.current.stamps;
         const stampContext = stampCanvas.getContext("2d");
 
 
@@ -510,7 +510,7 @@
             stampContext.clearRect(0, 0, stampCanvas.width, stampCanvas.height);
 
             //Redraws all remaining lines from data
-            for (const stamp of editorContext.stampsRef.current)
+            for (const stamp of editorContext.mapStateRef.current.stamps)
             {
                 if (stamp.deleteMode)
                 {
@@ -524,10 +524,13 @@
         } 
     }
 
+    /**
+     * Rerenders the solid canvas from scratch by iterating through the list of shapes.
+     */
     export const rebuildSolidCanvas = (editorContext) =>
     {
         const solidContext = editorContext.solidContext.current;
-        const shapes = editorContext.shapesRef.current;
+        const shapes = editorContext.mapStateRef.current.shapes;
         const canvasWidth = editorContext.solidCanvasRef.current.width;
         const canvasHeight = editorContext.solidCanvasRef.current.height;
 
@@ -549,6 +552,9 @@
 
     }
 
+    /**
+     * Draws a shape
+     */
     export const drawShape = (context, shape) =>
     {
         switch (shape.type)

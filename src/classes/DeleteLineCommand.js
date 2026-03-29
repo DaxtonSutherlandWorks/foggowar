@@ -1,4 +1,5 @@
 import { updateLines } from "../helpers/BrushUtils";
+import { addLine, deleteLine } from "../helpers/MapState";
 import { Command } from "./Command";
 
 /**
@@ -6,24 +7,23 @@ import { Command } from "./Command";
  */
 export class DeleteLineCommand extends Command {
     
-    // line = {id, x1, y1, x2, y2}
     constructor(line) 
     {
         super();
 
         this.line = line;
+
     }
 
     execute(editorContext) 
     {
-
-        editorContext.linesRef.current = editorContext.linesRef.current.filter(keepLines => keepLines.id !== this.line.id);
+        deleteLine(editorContext.mapStateRef.current, this.line);
         updateLines(editorContext, true);
     }
 
     undo(editorContext) 
     {
-        editorContext.linesRef.current.push(this.line);
+        addLine(editorContext.mapStateRef.current, this.line);
         updateLines(editorContext, false);
     }
 }

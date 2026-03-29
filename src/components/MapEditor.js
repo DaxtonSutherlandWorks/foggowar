@@ -9,6 +9,7 @@ import UndoIcon from "../img/undoIcon.svg";
 import RedoIcon from "../img/redoIcon.svg";
 import { DeleteStampCommand } from "../classes/DeleteStampCommand";
 import { DeleteLineCommand } from "../classes/DeleteLineCommand";
+import { createInitialMapState } from "../helpers/MapState";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -31,6 +32,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     const solidContext = useRef(null);
     const dotContext = useRef(null);
 
+    //Canvas operation Refs
     const paintModeRef = useRef(paintMode);
     const deleteModeRef = useRef(deleteMode);
     const paintingRef = useRef(painting);
@@ -43,12 +45,10 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     const guideHoverRadius = useRef(6);
     const snapDistance = useRef(12);
 
+    //Object refs
     const editorContextRef = useRef(null);
     const commandManagerRef = useRef(null);
-
-    const linesRef = useRef([]);
-    const stampsRef = useRef([]);
-    const shapesRef = useRef([]);
+    const mapStateRef = useRef(createInitialMapState(dimensions, tileSize));
 
     /**
      * Initializes our editor context and creates a new command editor to support brush execution and undoing
@@ -67,11 +67,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             lineContext,
             stampContext,
 
-            linesRef,
-            stampsRef,
-            shapesRef,
-
-            dimensions
+            mapStateRef
         }
 
         commandManagerRef.current = new CommandManager(editorContextRef.current);
@@ -216,14 +212,14 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                             const line = findLineAtGuidePoint(
                                 guidePoint.x,
                                 guidePoint.y,
-                                linesRef.current,
+                                mapStateRef.current.lines,
                                 16
                             );
 
                             if (line)
                             {
                                 commandManagerRef.current.execute(
-                                    new DeleteLineCommand({id: line.id, x1: line.x1, y1: line.y1, x2: line.x2, y2: line.y2})
+                                    new DeleteLineCommand(line)
                                 );
                             }
 
@@ -248,10 +244,17 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                         //Only terminates in range of guide point, snaps to it
                         if (guidePoint)
                         {
+                            const line = {
+                                id: crypto.randomUUID(), 
+                                x1: startCoords.current[0], 
+                                y1: startCoords.current[1], 
+                                x2: guidePoint.x, 
+                                y2: guidePoint.y
+                            }
                             //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
                             commandManagerRef.current.execute(
-                                new DrawLineCommand({id: crypto.randomUUID(), x1: startCoords.current[0], y1: startCoords.current[1], x2: guidePoint.x, y2: guidePoint.y})
-                            )
+                                new DrawLineCommand(line)
+                            );
 
                             //Clears the redo stack to avoid conflicts
                             commandManagerRef.current.clearRedoStack();
@@ -292,7 +295,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                             const rec = {id: crypto.randomUUID(), type: "rectangle", x: normalizedRect.x, y: normalizedRect.y, width: normalizedRect.w, height: normalizedRect.h, deletion: deleteModeRef.current};
 
                             commandManagerRef.current.execute(
-                                new ClearShapeCommand({shape: rec, editorContextRef})
+                                new ClearShapeCommand(rec)
                             );
 
                             //Clears the redo stack to avoid conflicts
@@ -332,7 +335,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                             const circ = {id: crypto.randomUUID(), type: "circle", x: x, y: y, r: r, deletion: deleteModeRef.current};
 
                             commandManagerRef.current.execute(
-                                new ClearShapeCommand({shape: circ, editorContextRef})
+                                new ClearShapeCommand(circ)
                             );
 
                             //Clears the redo stack to avoid conflicts
@@ -366,7 +369,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                                 const poly = {id: crypto.randomUUID(), type: "polygon", points: paintPoints.current, deletion: deleteModeRef.current};
 
                                 commandManagerRef.current.execute(
-                                    new ClearShapeCommand({shape: poly, editorContextRef})
+                                    new ClearShapeCommand(poly)
                                 );
 
                                 //Clears the redo stack to avoid conflicts
@@ -391,17 +394,17 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                     {
                         if (deleteModeRef.current)
                         {
-                            for (let i = stampsRef.current.length - 1; i >= 0; i--)
+                            for (let i = mapStateRef.current.stamps.length - 1; i >= 0; i--)
                             {
-                                if (guidePoint.x >= stampsRef.current[i].x 
-                                    && guidePoint.x <= stampsRef.current[i].x + stampsRef.current[i].width
-                                    && guidePoint.y >= stampsRef.current[i].y
-                                    && guidePoint.y <= stampsRef.current[i].y + stampsRef.current[i].height)
+                                if (guidePoint.x >= mapStateRef.current.stamps[i].x 
+                                    && guidePoint.x <= mapStateRef.current.stamps[i].x + mapStateRef.current.stamps[i].width
+                                    && guidePoint.y >= mapStateRef.current.stamps[i].y
+                                    && guidePoint.y <= mapStateRef.current.stamps[i].y + mapStateRef.current.stamps[i].height)
                                     {
-                                        const stamp = stampsRef.current[i];
+                                        const stamp = mapStateRef.current.stamps[i];
 
                                         commandManagerRef.current.execute(
-                                            new DeleteStampCommand({id: stamp.id, image: stamp.image, x: stamp.x, y: stamp.y, width: stamp.width, height: stamp.height})
+                                            new DeleteStampCommand(stamp)
                                         );
                                     }
                             }
@@ -411,9 +414,18 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
                         else if (isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) && isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
                         {
+                            const stamp = {
+                                id: crypto.randomUUID(), 
+                                image: stampImage.current, 
+                                x: guidePoint.x, 
+                                y: guidePoint.y, 
+                                width: stampSize[0], 
+                                height: stampSize[1]
+                            };
+
                             //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
                             commandManagerRef.current.execute(
-                                new DrawStampCommand({id: crypto.randomUUID(), image: stampImage.current, x: guidePoint.x, y: guidePoint.y, width: stampSize[0], height: stampSize[1]})
+                                new DrawStampCommand(stamp)
                             );
 
                             //Clears the redo stack to avoid conflicts
@@ -734,7 +746,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     }
 
     const logger = () => {
-        console.log(shapesRef.current);
+        console.log(mapStateRef.current);
     }
 
     /***********************************************************************

@@ -1,4 +1,5 @@
 import { updateStamps } from "../helpers/BrushUtils";
+import { addStamp, deleteStamp } from "../helpers/MapState";
 import { Command } from "./Command";
 
 /**
@@ -16,14 +17,13 @@ export class DeleteStampCommand extends Command {
 
     execute(editorContext) 
     {
-
-        editorContext.stampsRef.current = editorContext.stampsRef.current.filter(keepStamps => keepStamps.id !== this.stamp.id);
+        deleteStamp(editorContext.mapStateRef.current, this.stamp);
         updateStamps(editorContext, true);
     }
 
     undo(editorContext) 
     {
-        editorContext.stampsRef.current.push(this.stamp);
+        addStamp(editorContext.mapStateRef.current, this.stamp);
         updateStamps(editorContext, false);
     }
 }
