@@ -335,7 +335,7 @@
     {
         solidContext.save();
 
-        if (shape.deletion)
+        if (shape.operation === "subtract")
         {
             solidContext.fillStyle = "#fdf8f0ff";
         }
@@ -361,7 +361,7 @@
     {
         solidContext.save();
 
-        if (shape.deletion)
+        if (shape.operation === "subtract")
         {
             solidContext.fillStyle = "#fdf8f0ff";
         }
@@ -395,7 +395,7 @@
     {
         solidContext.save();
 
-        if (shape.deletion)
+        if (shape.operation === "subtract")
         {
             solidContext.fillStyle = "#fdf8f0ff";
         }

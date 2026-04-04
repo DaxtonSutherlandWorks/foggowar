@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
-import { nearestGuidePoint, applySquareBrush, applyPolygonBrush, applyCircleBrush, isSquareCleared, findLineAtGuidePoint, normalizeRectangleCoords } from "../helpers/BrushUtils";
+import { nearestGuidePoint, isSquareCleared, findLineAtGuidePoint, normalizeRectangleCoords } from "../helpers/BrushUtils";
 import { DrawLineCommand } from "../classes/DrawLineCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
 import { ClearShapeCommand } from "../classes/ClearShapeCommand";
@@ -10,6 +10,7 @@ import RedoIcon from "../img/redoIcon.svg";
 import { DeleteStampCommand } from "../classes/DeleteStampCommand";
 import { DeleteLineCommand } from "../classes/DeleteLineCommand";
 import { createInitialMapState } from "../helpers/MapState";
+import { createShape } from "../schemas/shapeSchema";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -292,7 +293,20 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
                             const normalizedRect = normalizeRectangleCoords(x1, y1, x2, y2);
 
-                            const rec = {id: crypto.randomUUID(), type: "rectangle", x: normalizedRect.x, y: normalizedRect.y, width: normalizedRect.w, height: normalizedRect.h, deletion: deleteModeRef.current};
+                            const rec = createShape(
+                                {
+                                    id: crypto.randomUUID(),
+                                    type: "rectangle",
+
+                                    x: normalizedRect.x,
+                                    y: normalizedRect.y,
+
+                                    width: normalizedRect.w,
+                                    height: normalizedRect.h,
+
+                                    operation: deleteModeRef.current ? "subtract" : "add"
+                                }
+                            )
 
                             commandManagerRef.current.execute(
                                 new ClearShapeCommand(rec)
@@ -332,7 +346,18 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                             const y = startCoords.current[1];
                             const r = Math.abs(Math.hypot((guidePoint.x - startCoords.current[0]), (guidePoint.y - startCoords.current[1])));
 
-                            const circ = {id: crypto.randomUUID(), type: "circle", x: x, y: y, r: r, deletion: deleteModeRef.current};
+                            const circ = createShape(
+                                {
+                                    id: crypto.randomUUID(),
+                                    type: "circle",
+
+                                    x: x,
+                                    y: y,
+                                    r: r,
+
+                                    operation: deleteModeRef.current ? "subtract" : "add"
+                                }
+                            )
 
                             commandManagerRef.current.execute(
                                 new ClearShapeCommand(circ)
@@ -366,8 +391,17 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                             if (guidePoint.x === paintPoints.current[0].x && guidePoint.y === paintPoints.current[0].y)
                             {
 
-                                const poly = {id: crypto.randomUUID(), type: "polygon", points: paintPoints.current, deletion: deleteModeRef.current};
+                                const poly = createShape(
+                                    {
+                                        id: crypto.randomUUID(),
+                                        type: "polygon",
 
+                                        points: paintPoints.current,
+
+                                        operation: deleteModeRef.current ? "subtract" : "add"
+                                    }
+                                )
+                                
                                 commandManagerRef.current.execute(
                                     new ClearShapeCommand(poly)
                                 );
