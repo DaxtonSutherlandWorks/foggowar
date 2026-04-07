@@ -1,12 +1,14 @@
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
-import { nearestGuidePoint, isSquareCleared, findLineAtGuidePoint, normalizeRectangleCoords } from "../helpers/BrushUtils";
+import { nearestGuidePoint, isSquareCleared, findLineAtGuidePoint, normalizeRectangleCoords, rebuildSolidCanvas } from "../helpers/BrushUtils";
 import { DrawLineCommand } from "../classes/DrawLineCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
 import { ClearShapeCommand } from "../classes/ClearShapeCommand";
 import UndoIcon from "../img/undoIcon.svg";
 import RedoIcon from "../img/redoIcon.svg";
+import SaveIcon from "../img/saveIcon.svg";
+import ImportIcon from "../img/importIcon.svg";
 import { DeleteStampCommand } from "../classes/DeleteStampCommand";
 import { DeleteLineCommand } from "../classes/DeleteLineCommand";
 import { createInitialMapState } from "../helpers/MapState";
@@ -51,6 +53,9 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     const commandManagerRef = useRef(null);
     const mapStateRef = useRef(createInitialMapState(dimensions, tileSize));
 
+    //UI Refs
+    const mapUploadRef = useRef(null);
+
     /**
      * Initializes our editor context and creates a new command editor to support brush execution and undoing
      */
@@ -93,6 +98,8 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         solidContext.current = solidCanvasRef.current.getContext("2d");
         dotContext.current = dotCanvasRef.current.getContext("2d");
 
+        //Setting up buttons
+        mapUploadRef.current.click();
 
         //Sizing canvases
         lineCanvasRef.current.width = dimensions[1] * tileSize;
@@ -779,6 +786,90 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         commandManagerRef.current.redo();
     }
 
+    /**
+     * Handles a call to save
+     */
+    const handleSave = (event) =>
+    {
+        //Data prep
+        const json = JSON.stringify(mapStateRef.current, null, 2);
+        const blob = new Blob([json], {type: "application/json"});
+
+        //Creating a tempory link that is automatically clicked
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "map.fog";
+
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Handles importing a map
+     */
+    const handleMapImport = (event) =>
+    {
+        const file = event.target.files[0];
+
+        if (!file)
+        {
+            return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = (e) => 
+        {
+            try
+            {
+                const parsed = JSON.parse(e.target.result);
+
+                validateMapState(parsed);
+
+                mapStateRef.current = parsed;
+
+                rebuildFromState(parsed);
+            }
+            catch (err)
+            {
+                console.error("Invalid file", err);
+                alert("Failed to load map file");
+            }
+        };
+
+        reader.readAsText(file);
+    }
+
+    /**
+     * Checks for basic map traits
+     */
+    const validateMapState = (data) => 
+    {
+        if (!data.version)
+        {
+            throw new Error("Missing version");
+        }
+        
+        if (!data.shapes)
+        {
+            throw new Error("Invalid shapes");
+        }
+    }
+
+    /**
+     * Rebuilds the editor
+     */
+    const rebuildFromState = (state) =>
+    {
+        //TODO: Write rebuilders for stamps and lines
+        rebuildSolidCanvas(editorContextRef.current);
+    }
+
     const logger = () => {
         console.log(mapStateRef.current);
     }
@@ -794,6 +885,13 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 <p>Tool Bar: </p>
                 <button onClick={handleUndo}><img src={UndoIcon} alt="Undo button"></img></button>
                 <button onClick={handleRedo}><img src={RedoIcon} alt="Redo button"></img></button>
+                <button onClick={handleSave}><img src={SaveIcon} alt="Save button"></img></button>
+                <button onClick={() => mapUploadRef.current.click()}><img src={ImportIcon} alt="Import button"></img></button>
+                <input type="file"
+                accept=".fog"
+                ref={mapUploadRef}
+                style={{display:"none"}}
+                onChange={handleMapImport} />
             </div>
             <div style={{border: "solid 2px black", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
                 <canvas ref={stampCanvasRef} className="stamp-canvas"></canvas>
