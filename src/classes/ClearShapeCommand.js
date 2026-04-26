@@ -1,4 +1,4 @@
-import { rebuildSolidCanvas } from "../helpers/BrushUtils";
+import { rebuildShapeArea, rebuildSolidCanvas } from "../helpers/BrushUtils";
 import { addShape, deleteShape } from "../helpers/MapState";
 import { Command } from "./Command";
 
@@ -18,9 +18,10 @@ export class ClearShapeCommand extends Command {
     execute(editorContext) 
     {
         addShape(editorContext.mapStateRef.current, this.shape);
-        rebuildSolidCanvas(editorContext);
+        rebuildShapeArea(editorContext, this.shape);
     }
 
+    //TODO: Clean this up to not rerender the whole canvas if possible
     undo(editorContext) 
     {
         deleteShape(editorContext.mapStateRef.current, this.shape);

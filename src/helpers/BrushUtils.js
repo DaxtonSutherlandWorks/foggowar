@@ -17,35 +17,60 @@
     /**
      * Creates a bounding box for a given shape object
      */
-    export const createBoundingBox = (shape, mode) =>
+    export const createBoundingBox = (shape) =>
     {
         let box = {};
+        let padding = 2;
 
-        switch (mode)
+        switch (shape.type)
         {
-            // shape = {x1, y1, x2, y2}
-            case "square":
+            case "rectangle":
 
-                const { x1, y1, x2, y2 } = shape;
-                const rect = normalizeRectangleCoords(x1, x2, y1, y2);
-
-                //Set up bounding box
-                const pad = 3;
-
-                const boxX = Math.floor(rect.x - pad);
-                const boxY = Math.floor(rect.y - pad);
-                const boxWidth = Math.ceil((rect.w + pad) * 2);
-                const boxHeight = Math.ceil((rect.h + pad) * 2);
-
-                box =  {x: boxX, y: boxY, w: boxWidth, h: boxHeight};
+                box =
+                {
+                    x: Math.floor(Math.max(shape.x - padding, 0)), //accounts for deci and negatives
+                    y: Math.floor(Math.max(shape.y - padding, 0)),
+                    width: Math.ceil(shape.width + (padding * 2)),
+                    height: Math.ceil(shape.height + (padding * 2)),
+                    padding
+                }
                 break;
 
             case "circle":
-                console.log("circle");
+                
+                box =
+                {
+                    x: Math.floor(Math.max(shape.x - shape.r - padding, 0)),
+                    y: Math.floor(Math.max(shape.y - shape.r - padding, 0)),
+                    width: Math.ceil((shape.r + padding) * 2),
+                    height: Math.ceil((shape.r + padding) * 2),
+                    padding
+                }
                 break;
 
             case "polygon":
-                console.log("polygon");
+
+            let minX = Infinity;
+            let minY = Infinity;
+            let maxX = -Infinity;
+            let maxY = -Infinity;
+
+            for (const p of shape.points) 
+            {
+                if (p.x < minX) minX = p.x;
+                if (p.y < minY) minY = p.y;
+                if (p.x > maxX) maxX = p.x;
+                if (p.y > maxY) maxY = p.y;
+            }
+                
+                box = 
+                {
+                    x: minX - padding,
+                    y: minY - padding,
+                    width: (maxX - minX) + padding * 2,
+                    height: (maxY - minY) + padding * 2,
+                    padding
+                }
                 break;
 
 
@@ -282,10 +307,10 @@
      * Scans the solid canvas image and returns all border edge pixels.
      * Border pixels are solid pixels that touch at least one clear neighbor.
      */
-    export const recomputeBorders = (editorContext, image) => 
+    export const recomputeBorders = (editorContext, image, box) => 
     {
-        //Clears existing borders
-        editorContext.borderContext.current.clearRect(0, 0, editorContext.borderCanvasRef.current.width, editorContext.borderCanvasRef.current.width);
+        //Clears old borders
+        editorContext.borderContext.current.clearRect(box.x, box.y, box.width, box.height);
 
         const { data, width: w, height: h } = image;
         const edges = [];
@@ -314,7 +339,7 @@
 
                 if (touchesClear)
                 {
-                    edges.push({ x, y });
+                    edges.push({ x: (x + box.x - box.padding), y: (y + box.y - box.padding) });
                 }
             }
         }
@@ -529,7 +554,9 @@
      */
     export const rebuildSolidCanvas = (editorContext) =>
     {
+
         const solidContext = editorContext.solidContext.current;
+        const borderContext = editorContext.borderContext.current;
         const shapes = editorContext.mapStateRef.current.shapes;
         const canvasWidth = editorContext.solidCanvasRef.current.width;
         const canvasHeight = editorContext.solidCanvasRef.current.height;
@@ -541,34 +568,70 @@
 
         for (const shape of shapes)
         {
-            drawShape(solidContext, shape);
+            drawShape(editorContext, shape);
         }
 
         const imageData = solidContext.getImageData(0, 0, canvasWidth, canvasHeight);
 
-        const edges = recomputeBorders(editorContext, imageData);
+        const canvasBox = {x: 0, y: 0, width: canvasWidth, height: canvasHeight, padding: 0};
+
+        const edges = recomputeBorders(editorContext, imageData, canvasBox);
 
         drawEdgeDots(editorContext.borderContext.current, edges, 3);
 
     }
 
     /**
+     * Draws borders for just one shape
+     */
+    export const drawShapeBorders = (editorContext, shape) =>
+    {
+        const box = createBoundingBox(shape);
+
+        const imageData = editorContext.solidContext.current.getImageData(box.x, box.y, box.width, box.height);
+
+        const edges = recomputeBorders(editorContext, imageData, box);
+
+        drawEdgeDots(editorContext.borderContext.current, edges, 3);
+    }
+
+    /**
+     * Rebuilds a portion of the canvas affected by the given shape
+     */
+    export const rebuildShapeArea = (editorContext, shape) =>
+    {
+        const solidContext = editorContext.solidContext.current;
+        const borderContext = editorContext.borderContext.current;
+        const box = createBoundingBox(shape);
+
+        drawShape(editorContext, shape);
+
+        const imageData = solidContext.getImageData(box.x, box.y, box.width, box.height);
+
+        const edges = recomputeBorders(editorContext, imageData, box);
+
+        drawEdgeDots(editorContext.borderContext.current, edges, 3);
+    }
+
+    /**
      * Draws a shape
      */
-    export const drawShape = (context, shape) =>
+    export const drawShape = (editorContext, shape) =>
     {
+        const solidContext = editorContext.solidContext.current;
+
         switch (shape.type)
         {
             case "rectangle":
-                clearRectangle(context, shape);
+                clearRectangle(solidContext, shape);
                 break;
 
             case "circle":
-                clearCircle(context, shape);
+                clearCircle(solidContext, shape);
                 break;
 
             case "polygon":
-                clearPolygon(context, shape);
+                clearPolygon(solidContext, shape);
                 break;
 
             default:
