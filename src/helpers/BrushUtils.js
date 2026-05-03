@@ -4,15 +4,6 @@
      * General Utils
      * 
      * **************************************************************************/
-      
-    /**
-     * Snags the image data of an area
-     */
-    export const captureAlpha = (context, x, y, w, h) =>
-    {
-        const img = context.getImageData(x, y, w, h);
-        return img.data;
-    } 
 
     /**
      * Creates a bounding box for a given shape object
@@ -129,53 +120,6 @@
         }
 
         return closest;
-    }
-
-    /**
-     * Determines which pixels became empty after a brush stroke, and which are touching parts of the solid canvas' rectangle that still exist.
-     * 
-     * Before and after are image data, Uint8ClampedArrays to be precise, they are formatted as:
-     * an array of pixels where each pixel occuppies four array slots
-     * [..., Red, Green, Blue, Alpha, Red, Green, Blue, Alpha, ...]
-     * So data[0] = First pixel red, etc.
-     */
-    export const findNewEdges = (before, after, w, h) =>
-    {
-        let edges = [];
-
-        //This loop is set up to ignore edge pixels, because it would run out of bounds.
-        //This is fine because there is padding that prevents any relevant pixels from being skipped.
-        for (let y = 1; y < h - 1; y++) 
-        {
-            for (let x = 1; x < w - 1; x++) 
-            {
-                //I equals the pixel index (y * w + x) times the RGBA step (4) + 3 to get to the alpha value
-                const i = (y * w + x) * 4 + 3;
-
-                //Makes a binary state based off of alpha
-                const beforeState = before[i] !== 0;
-                const afterState  = after[i] !== 0;
-
-                //Early break for efficiency if no change, no need to check further.
-                if (afterState === beforeState) continue;
-
-                // Neighbor alpha indices (left, right, up, down)
-                const neighbors = [
-                    i - 4,
-                    i + 4,
-                    i - w * 4,
-                    i + w * 4
-                ];
-
-                // If any neighbor has a different state than this pixel *after* the change,
-            // then this pixel lies on a solid/clear boundary and needs an edge.
-                if (neighbors.some(n => (after[n] !== 0) !== afterState)) {
-                    edges.push({ x, y });
-                }
-            }
-        }
-
-        return edges;
     }
 
     /**

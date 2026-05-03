@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
-import { nearestGuidePoint, isSquareCleared, findLineAtGuidePoint, normalizeRectangleCoords, rebuildSolidCanvas, rebuildLines, rebuildLineCanvas, rebuildStampCanvas } from "../helpers/BrushUtils";
+import { nearestGuidePoint, isSquareCleared, findLineAtGuidePoint, normalizeRectangleCoords, rebuildSolidCanvas, rebuildLineCanvas, rebuildStampCanvas } from "../helpers/BrushUtils";
 import { DrawLineCommand } from "../classes/DrawLineCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
 import { ClearShapeCommand } from "../classes/ClearShapeCommand";
@@ -137,6 +137,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
         drawStaticGuides();
 
+        //Loads in the initial stamp image
         loadStamp(currStamp)
 
     }, []);
@@ -169,7 +170,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     }, [deleteMode]);
 
     /**
-     * 
+     * Updates the painting state
      */
     useEffect(() => {
 
@@ -179,6 +180,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
     /**
      * Loads the current stamp into an image that can be drawn on a canvas
+     * Used for previews
      */
     const loadStamp = (path) =>
     {
@@ -209,12 +211,15 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             //Checks whether the cursor is in range of a guide point
             let guidePoint = nearestGuidePoint(event.offsetX, event.offsetY, tileSize, snapDistance.current)
 
+            //Click functions by mode
             switch (paintModeRef.current)
             {
                 case "line":
 
+                    //Line deletion
                     if (deleteModeRef.current)
                     {
+                        //Only triggers if a valid line is within range
                         if (guidePoint)
                         {
                             const line = findLineAtGuidePoint(
@@ -267,6 +272,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                             //Clears the redo stack to avoid conflicts
                             commandManagerRef.current.clearRedoStack();
 
+                            //Udates the painting state and clears the overlay preview
                             setPainting(false);
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                         }
@@ -298,6 +304,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                             const x2 = guidePoint.x;
                             const y2 = guidePoint.y;
 
+                            //Normalize the rectange (set leftmost coords as first set) for consistent shape storage
                             const normalizedRect = normalizeRectangleCoords(x1, y1, x2, y2);
 
                             const rec = createShape(
@@ -433,8 +440,10 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
                     if(guidePoint)
                     {
+                        //Stamp Deletion
                         if (deleteModeRef.current)
                         {
+                            //Checks all stamps to find a match
                             for (let i = mapStateRef.current.stamps.length - 1; i >= 0; i--)
                             {
                                 if (guidePoint.x >= mapStateRef.current.stamps[i].x 
@@ -453,6 +462,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                             
                         }
 
+                        //Checks if the stamp's potential area is clear
                         else if (isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) && isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
                         {
                             const stamp = {
@@ -497,181 +507,132 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
         overlayContext.current.save();
 
-         switch (paintModeRef.current)
-            {
-                case "line":
+        switch (paintModeRef.current)
+        {
+            case "line":
 
-                    //Ignore movements unless painting
-                    if (!paintingRef.current)
-                    {
-                        return;
-                    }
-
-                    overlayContext.current.beginPath();
-                    overlayContext.current.moveTo(startCoords.current[0], startCoords.current[1]);
-                    overlayContext.current.lineTo(event.offsetX, event.offsetY);
-                    overlayContext.current.lineWidth = brushSize.current;
-
-                    //Changes preview line color based on if it has a valid placement
-                    if(!guidePoint)
-                    {
-                        overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
-                    }
-                    else
-                    {
-                        overlayContext.current.strokeStyle = brushColor.current;
-                    }
-
-                    overlayContext.current.stroke();
-                    break;
-
-                case "square":
-
-                    //Ignore movements unless painting
-                    if (!paintingRef.current)
-                    {
-                        return;
-                    }
-
-                    overlayContext.current.beginPath();
-                    overlayContext.current.lineWidth = brushSize.current;
-                    overlayContext.current.rect(startCoords.current[0], startCoords.current[1], event.offsetX - startCoords.current[0], event.offsetY - startCoords.current[1]);
-
-                    //Changes preview line color based on if it has a valid placement
-                    if(!guidePoint)
-                    {
-                        if (deleteModeRef.current)
-                        {
-                            overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)"
-                        }
-                        else
-                        {
-                            overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
-                        }
-                    }
-                    else
-                    {
-                        if (deleteModeRef.current)
-                        {   
-                            overlayContext.current.strokeStyle = "red";
-                        }
-                        else
-                        {
-                            overlayContext.current.strokeStyle = brushColor.current;
-                        }
-                    }
-
-                    overlayContext.current.stroke();
-                    break;
-
-                case "circle":
-
-                    //Ignore movements unless painting
-                    if (!paintingRef.current)
-                    {
-                        return;
-                    }
-
-                    overlayContext.current.beginPath();
-                    overlayContext.current.arc(startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((event.offsetX - startCoords.current[0]), (event.offsetY - startCoords.current[1]))), 0, 2 * Math.PI);
-                    overlayContext.current.lineWidth = brushSize.current;
-
-                    //Changes preview line color based on if it has a valid placement
-                    if(!guidePoint)
-                    {
-                        if (deleteModeRef.current)
-                        {
-                            overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)"
-                        }
-                        else
-                        {
-                            overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
-                        }
-                    }
-                    else
-                    {
-                        if (deleteModeRef.current)
-                        {   
-                            overlayContext.current.strokeStyle = "red";
-                        }
-                        else
-                        {
-                            overlayContext.current.strokeStyle = brushColor.current;
-                        }
-                    }
-
-                    overlayContext.current.stroke();
-                    break;
-
-                case "polygon":
-                    
-                    //Ignore movements unless painting
-                    if (!paintingRef.current)
-                    {
-                        return;
-                    }
-
-                    overlayContext.current.lineWidth = brushSize.current;
-
-                    //Changes preview line color based on if it has a valid placement
-                    if(!guidePoint)
-                    {
-                        if (deleteModeRef.current)
-                        {
-                            overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)"
-                        }
-                        else
-                        {
-                            overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
-                        }
-                    }
-                    else
-                    {
-                        if (deleteModeRef.current)
-                        {   
-                            overlayContext.current.strokeStyle = "red";
-                        }
-                        else
-                        {
-                            overlayContext.current.strokeStyle = brushColor.current;
-                        }
-                    }
-
-                    overlayContext.current.beginPath();
-                    overlayContext.current.moveTo(paintPoints.current[0].x, paintPoints.current[0].y)
-
-                    for (let i = 1; i < paintPoints.current.length; i++)
-                    {
-                        overlayContext.current.lineTo(paintPoints.current[i].x, paintPoints.current[i].y);
-                    }
-
-                    overlayContext.current.lineTo(event.offsetX, event.offsetY);
-                    overlayContext.current.stroke();
-                    break;
-
-                case "stamp":
-
-                    if (guidePoint && !deleteModeRef.current)
-                    {
-
-                        overlayContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
-                        
-                        if (!isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) || !isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
-                        {
-                            overlayContext.current.globalCompositeOperation = "source-atop";
-                            overlayContext.current.fillStyle = "red";
-                            overlayContext.current.fillRect(guidePoint.x + 6, guidePoint.y, stampSize[0], stampSize[1]);
-                        }
-                        
-                    }
-                    
-                    break;
-                
-                default:
+                //Ignore movements unless painting
+                if (!paintingRef.current)
+                {
                     return;
-            }
+                }
 
-            overlayContext.current.restore();
+                overlayContext.current.beginPath();
+                overlayContext.current.moveTo(startCoords.current[0], startCoords.current[1]);
+                overlayContext.current.lineTo(event.offsetX, event.offsetY);
+                overlayContext.current.lineWidth = brushSize.current;
+
+                //Changes preview line color based on if it has a valid placement
+                guidePoint ? overlayContext.current.strokeStyle = brushColor.current : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
+
+                overlayContext.current.stroke();
+                break;
+
+            case "square":
+
+                //Ignore movements unless painting
+                if (!paintingRef.current)
+                {
+                    return;
+                }
+
+                overlayContext.current.beginPath();
+                overlayContext.current.lineWidth = brushSize.current;
+                overlayContext.current.rect(startCoords.current[0], startCoords.current[1], event.offsetX - startCoords.current[0], event.offsetY - startCoords.current[1]);
+
+                //Changes preview line color based on if it has a valid placement
+                if(!guidePoint)
+                {
+                    deleteModeRef.current ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
+                }
+                else
+                {
+                    deleteModeRef.current ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
+                }
+
+                overlayContext.current.stroke();
+                break;
+
+            case "circle":
+
+                //Ignore movements unless painting
+                if (!paintingRef.current)
+                {
+                    return;
+                }
+
+                overlayContext.current.beginPath();
+                overlayContext.current.arc(startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((event.offsetX - startCoords.current[0]), (event.offsetY - startCoords.current[1]))), 0, 2 * Math.PI);
+                overlayContext.current.lineWidth = brushSize.current;
+
+                //Changes preview line color based on if it has a valid placement
+                if(!guidePoint)
+                {
+                    deleteModeRef.current ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
+                }
+                else
+                {
+                    deleteModeRef.current ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
+                }
+
+                overlayContext.current.stroke();
+                break;
+
+            case "polygon":
+                
+                //Ignore movements unless painting
+                if (!paintingRef.current)
+                {
+                    return;
+                }
+
+                overlayContext.current.lineWidth = brushSize.current;
+
+                //Changes preview line color based on if it has a valid placement
+                if(!guidePoint)
+                {
+                    deleteModeRef.current ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
+                }
+                else
+                {
+                    deleteModeRef.current ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
+                }
+
+                overlayContext.current.beginPath();
+                overlayContext.current.moveTo(paintPoints.current[0].x, paintPoints.current[0].y)
+
+                for (let i = 1; i < paintPoints.current.length; i++)
+                {
+                    overlayContext.current.lineTo(paintPoints.current[i].x, paintPoints.current[i].y);
+                }
+
+                overlayContext.current.lineTo(event.offsetX, event.offsetY);
+                overlayContext.current.stroke();
+                break;
+
+            case "stamp":
+
+                if (guidePoint && !deleteModeRef.current)
+                {
+
+                    overlayContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
+                    
+                    if (!isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) || !isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
+                    {
+                        overlayContext.current.globalCompositeOperation = "source-atop";
+                        overlayContext.current.fillStyle = "red";
+                        overlayContext.current.fillRect(guidePoint.x + 6, guidePoint.y, stampSize[0], stampSize[1]);
+                    }
+                    
+                }
+                
+                break;
+            
+            default:
+                return;
+        }
+
+        overlayContext.current.restore();
     }
 
     /**
@@ -769,6 +730,10 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         context.current.arc(dot.x, dot.y, guideHoverRadius.current, 0, Math.PI * 2);
         context.current.fill();
     }
+
+    /********************************************************************************
+     * Toolbar Helpers
+     ********************************************************************************/
 
     /**
      * Handles a call to undo
@@ -871,6 +836,9 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         rebuildStampCanvas(editorContextRef.current);
     }
 
+    /**
+     * Tempory logging helper
+     */
     const logger = () => {
         console.log(mapStateRef.current);
     }
