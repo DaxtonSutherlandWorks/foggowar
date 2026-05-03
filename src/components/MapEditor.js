@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
-import { nearestGuidePoint, isSquareCleared, findLineAtGuidePoint, normalizeRectangleCoords, rebuildSolidCanvas } from "../helpers/BrushUtils";
+import { nearestGuidePoint, isSquareCleared, findLineAtGuidePoint, normalizeRectangleCoords, rebuildSolidCanvas, rebuildLines, rebuildLineCanvas, rebuildStampCanvas } from "../helpers/BrushUtils";
 import { DrawLineCommand } from "../classes/DrawLineCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
 import { ClearShapeCommand } from "../classes/ClearShapeCommand";
@@ -457,7 +457,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                         {
                             const stamp = {
                                 id: crypto.randomUUID(), 
-                                image: stampImage.current, 
+                                imagePath: currStamp, 
                                 x: guidePoint.x, 
                                 y: guidePoint.y, 
                                 width: stampSize[0], 
@@ -866,8 +866,9 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
      */
     const rebuildFromState = (state) =>
     {
-        //TODO: Write rebuilders for stamps and lines
         rebuildSolidCanvas(editorContextRef.current);
+        rebuildLineCanvas(editorContextRef.current);
+        rebuildStampCanvas(editorContextRef.current);
     }
 
     const logger = () => {

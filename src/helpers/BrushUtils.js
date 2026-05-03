@@ -447,9 +447,8 @@
      */
     export const updateLines = (editorContext, fullRedraw) =>
     {
-        const lineCanvas = editorContext.lineCanvasRef.current;
         const canvasLines = editorContext.mapStateRef.current.lines;
-        const lineContext = lineCanvas.getContext("2d");
+        const lineContext = editorContext.lineContext.current;
 
         lineContext.save();
 
@@ -458,46 +457,12 @@
             //Gets newest line
             const line = canvasLines[canvasLines.length - 1]
 
-            lineContext.strokeStyle = "black";
-            lineContext.lineWidth = 3;
-
-            if (line.deleteMode)
-            {
-                lineContext.globalCompositeOperation = "destination-out";
-                lineContext.lineWidth = 5;
-            }
-
-            lineContext.beginPath();
-            lineContext.moveTo(line.x1, line.y1);
-            lineContext.lineTo(line.x2, line.y2);
-            lineContext.stroke();
+            drawLines([line], lineContext);
         }
 
         else
         {
-            //Clears entire canvas
-            lineContext.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
-
-            //Redraws all remaining lines from data
-            for (const line of editorContext.mapStateRef.current.lines)
-            {
-
-                lineContext.strokeStyle = "black";
-                lineContext.lineWidth = 3;
-
-                if (line.deleteMode)
-                {
-                    lineContext.globalCompositeOperation = "destination-out";
-                    lineContext.lineWidth = 5;
-                }
-
-                lineContext.beginPath();
-                lineContext.moveTo(line.x1, line.y1);
-                lineContext.lineTo(line.x2, line.y2);
-                lineContext.strokeStyle = "black";
-                lineContext.lineWidth = 3;
-                lineContext.stroke();
-            }
+            rebuildLineCanvas(editorContext);
         } 
 
         lineContext.restore();
@@ -508,44 +473,21 @@
      */
     export const updateStamps = (editorContext, fullRedraw) =>
     {
-        const stampCanvas = editorContext.stampCanvasRef.current;
         const canvasStamps = editorContext.mapStateRef.current.stamps;
-        const stampContext = stampCanvas.getContext("2d");
-
+        const stampContext = editorContext.stampContext.current;
 
         if (!fullRedraw)
         {
             //Gets newest stamp
             const stamp = canvasStamps[canvasStamps.length - 1]
 
-            if (stamp.deleteMode)
-            {
-                stampContext.clearRect(stamp.x, stamp.y, stamp.width, stamp.height);
-            }
-            else
-            {
-                stampContext.drawImage(stamp.image, stamp.x, stamp.y, stamp.width, stamp.height);
-            }
+            drawStamps([stamp], stampContext);
             
         }
 
         else
         {
-            //Clears entire canvas
-            stampContext.clearRect(0, 0, stampCanvas.width, stampCanvas.height);
-
-            //Redraws all remaining lines from data
-            for (const stamp of editorContext.mapStateRef.current.stamps)
-            {
-                if (stamp.deleteMode)
-                {
-                    stampContext.clearRect(stamp.x, stamp.y, stamp.width, stamp.height);
-                }
-                else
-                {
-                    stampContext.drawImage(stamp.image, stamp.x, stamp.y, stamp.width, stamp.height);
-                }
-            }
+           rebuildStampCanvas(editorContext);
         } 
     }
 
@@ -577,7 +519,7 @@
 
         const edges = recomputeBorders(editorContext, imageData, canvasBox);
 
-        drawEdgeDots(editorContext.borderContext.current, edges, 3);
+        drawEdgeDots(borderContext, edges, 3);
 
     }
 
@@ -610,7 +552,7 @@
 
         const edges = recomputeBorders(editorContext, imageData, box);
 
-        drawEdgeDots(editorContext.borderContext.current, edges, 3);
+        drawEdgeDots(borderContext, edges, 3);
     }
 
     /**
@@ -638,3 +580,79 @@
                 break;
         }
     }
+
+    /**
+     * Clears and rebuilds the line canvas
+     */
+    export const rebuildLineCanvas = (editorContext) =>
+    {
+        const lineContext = editorContext.lineContext.current;
+        const lines = editorContext.mapStateRef.current.lines;
+        const canvasWidth = editorContext.solidCanvasRef.current.width;
+        const canvasHeight = editorContext.solidCanvasRef.current.height;
+
+        lineContext.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        drawLines(lines, lineContext);
+    }
+
+    /**
+     * Draws all the lines of a given list
+     */
+    export const drawLines = (lines, lineContext) =>
+    {
+        lineContext.save()
+
+        lineContext.strokeStyle = "black";
+        lineContext.lineWidth = 3;
+
+        for (const line of lines)
+        {
+            lineContext.beginPath();
+            lineContext.moveTo(line.x1, line.y1);
+            lineContext.lineTo(line.x2, line.y2);
+            lineContext.stroke();
+        }
+
+        lineContext.restore();
+    }
+
+    /**
+     * Clears and rebuilds the stamp canvas
+     */
+    export const rebuildStampCanvas = (editorContext) =>
+    {
+        const stampContext = editorContext.stampContext.current;
+        const stamps = editorContext.mapStateRef.current.stamps;
+        const canvasWidth = editorContext.solidCanvasRef.current.width;
+        const canvasHeight = editorContext.solidCanvasRef.current.height;
+
+        stampContext.clearRect(0, 0, canvasWidth, canvasHeight);
+
+        drawStamps(stamps, stampContext);
+    }
+
+    /**
+     * Draws all the stamps in a given list
+     */
+    export const drawStamps = (stamps, stampContext) =>
+    {
+        for (const stamp of stamps)
+        {
+            const stampImage = createStampImg(stamp.imagePath);
+            stampContext.drawImage(stampImage, stamp.x, stamp.y, stamp.width, stamp.height);
+        }
+    }
+
+    /**
+     * Loads a stamp path into an image that can be drawn on a canvas
+     */
+    export const createStampImg = (path) =>
+    {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+
+        img.src = path;
+
+        return img;
+    };
