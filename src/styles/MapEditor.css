@@ -53,3 +53,11 @@
     background-color: transparent;
     cursor: pointer;
 }
+
+.map-viewport {
+    width: 700px;
+    height: 700px;
+    overflow: hidden;
+    position: relative;
+    border: solid 2px black;
+}

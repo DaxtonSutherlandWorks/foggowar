@@ -4,6 +4,7 @@ import SquareIcon from "../img/squareIcon.svg"
 import CircleIcon from "../img/circleIcon.svg"
 import PolygonIcon from "../img/polygonIcon.svg"
 import StampIcon from "../img/stampIcon.svg"
+import PanIcon from "../img/panIcon.svg"
 
 
 const BrushBox = ({paintMode, paintModeSetter, painting, deleteMode, deleteModeSetter}) => {
@@ -32,6 +33,9 @@ const BrushBox = ({paintMode, paintModeSetter, painting, deleteMode, deleteModeS
                 break;
             case "stamp":
                 paintModeSetter("stamp");
+                break;
+            case "pan":
+                paintModeSetter("pan");
                 break;
             default:
                 return;
@@ -69,11 +73,12 @@ const BrushBox = ({paintMode, paintModeSetter, painting, deleteMode, deleteModeS
                 <button id="polygon-button" className="icon-button" disabled={painting} onClick={handleBrushChange} style={{backgroundColor: paintMode === "polygon" ? "#9e9ee2" : "#e6e6fa"}}>
                     <img id="polygon-icon" src={PolygonIcon} alt="Polygon Icon"></img>
                 </button>
-                <div className="bottom-button-container">
-                    <button id="stamp-button" className="icon-button" disabled={painting} onClick={handleBrushChange} style={{backgroundColor: paintMode === "stamp" ? "#9e9ee2" : "#e6e6fa"}}>
-                        <img id="stamp-icon" src={StampIcon} alt="Stamp Icon"></img>
-                    </button>
-                </div>
+                <button id="stamp-button" className="icon-button" disabled={painting} onClick={handleBrushChange} style={{backgroundColor: paintMode === "stamp" ? "#9e9ee2" : "#e6e6fa"}}>
+                    <img id="stamp-icon" src={StampIcon} alt="Stamp Icon"></img>
+                </button>
+                <button id="pan-button" className="icon-button" disabled={painting} onClick={handleBrushChange} style={{backgroundColor: paintMode === "pan" ? "#9e9ee2" : "#e6e6fa"}}>
+                    <img id="pan-icon" src={PanIcon} alt="Pan Icon"></img>
+                </button>
             </div>
             
             <div style={{display: "flex", justifyContent: "center"}}>
@@ -87,6 +92,7 @@ const BrushBox = ({paintMode, paintModeSetter, painting, deleteMode, deleteModeS
                 <p><span>Circle:</span> Clear or fill a cirlce.</p>
                 <p><span>Polygon:</span> Clear or fill a polygon by placing points, ending where you started.</p>
                 <p><span>Stamp:</span> Place a decorative tree in an open tile.</p>
+                <p><span>Pan:</span> Drag the map to change your view.</p>
             </div>
         
         </div>

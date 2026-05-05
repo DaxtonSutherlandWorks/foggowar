@@ -18,7 +18,7 @@ function App() {
       <Header></Header>
       <div className='workspace'>
         <BrushBox paintMode={paintMode} paintModeSetter={paintModeSetter} painting={painting} deleteMode={deleteMode} deleteModeSetter={setDeleteMode}></BrushBox>
-        <MapEditor dimensions={[10,10]} paintMode={paintMode} painting={painting} setPainting={setPainting} deleteMode={deleteMode} currStamp={currStamp} stampSize={[70,70]} tileSize={70} ></MapEditor>
+        <MapEditor dimensions={[20,20]} paintMode={paintMode} painting={painting} setPainting={setPainting} deleteMode={deleteMode} currStamp={currStamp} stampSize={[70,70]} tileSize={70} ></MapEditor>
       </div>
       <Footer></Footer>
     </div>

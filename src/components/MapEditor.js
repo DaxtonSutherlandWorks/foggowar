@@ -48,12 +48,20 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     const guideHoverRadius = useRef(6);
     const snapDistance = useRef(12);
 
+    //Viewport Refs
+    const isPanningRef = useRef(false);
+    const panningStartX = useRef(0);
+    const panningStartY = useRef(0);
+    const panningStartScrollLeft = useRef(0);
+    const panningStartScrollTop = useRef(0);
+    const viewportRef = useRef(null);
+
     //Object refs
     const editorContextRef = useRef(null);
     const commandManagerRef = useRef(null);
     const mapStateRef = useRef(createInitialMapState(dimensions, tileSize));
 
-    //UI Refs
+    //Toolbar Refs
     const mapUploadRef = useRef(null);
 
     /**
@@ -98,6 +106,9 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         solidContext.current = solidCanvasRef.current.getContext("2d");
         dotContext.current = dotCanvasRef.current.getContext("2d");
 
+        //Initializing viewport
+        viewportRef.current = document.getElementById("viewport");
+
         //Setting up buttons
         mapUploadRef.current.click();
 
@@ -127,13 +138,27 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         solidContext.current.fillStyle = "#fdf8f0ff"
         solidContext.current.fillRect(0, 0, solidCanvasRef.current.width, solidCanvasRef.current.width);
 
+        //TODO: Condense listeners to handle panning better.
+        //TODO: Redo listeners to not trigger drawing on middle clicks. Research how to do that.
        //Listeners are made as class methods so they can be removed before being applied
        //This prevents the confusing and breaking behavior of listeners getting duplicated on a rerender.
-       overlayCanvasRef.current.removeEventListener('mousedown', onMouseDown);
-       overlayCanvasRef.current.addEventListener('mousedown', onMouseDown);
+       overlayCanvasRef.current.removeEventListener('mousedown', onCanvasMouseDown);
+       overlayCanvasRef.current.addEventListener('mousedown', onCanvasMouseDown);
 
-       overlayCanvasRef.current.removeEventListener('mousemove', onMouseMove);
-       overlayCanvasRef.current.addEventListener('mousemove', onMouseMove);
+       overlayCanvasRef.current.removeEventListener('mousemove', onCanvasMouseMove);
+       overlayCanvasRef.current.addEventListener('mousemove', onCanvasMouseMove);
+
+       viewportRef.current.removeEventListener('mousedown', onViewportMouseDown);
+       viewportRef.current.addEventListener('mousedown', onViewportMouseDown);
+
+       viewportRef.current.removeEventListener('mousemove', onViewportMouseMove);
+       viewportRef.current.addEventListener('mousemove', onViewportMouseMove);
+
+       viewportRef.current.removeEventListener('mouseup', onViewportMouseUp);
+       viewportRef.current.addEventListener('mouseup', onViewportMouseUp);
+
+       viewportRef.current.removeEventListener('mouseleave', onViewportMouseLeave);
+       viewportRef.current.addEventListener('mouseleave', onViewportMouseLeave);
 
         drawStaticGuides();
 
@@ -157,6 +182,15 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     useEffect(() => {
         
         paintModeRef.current = paintMode;
+
+        if (paintMode === "pan")
+        {
+            viewportRef.current.style.cursor = "grab";
+        }
+        else
+        {
+            viewportRef.current.style.cursor = "default";
+        }
 
     }, [paintMode]);
 
@@ -203,10 +237,14 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         img.src = path;
     };
 
+    /********************************************************************************
+     * Canvas Listeners
+     ********************************************************************************/
+
     /**
     * Overlay mouse click listener
     */
-    const onMouseDown = (event) => {
+    const onCanvasMouseDown = (event) => {
 
             //Checks whether the cursor is in range of a guide point
             let guidePoint = nearestGuidePoint(event.offsetX, event.offsetY, tileSize, snapDistance.current)
@@ -494,7 +532,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     /**
     * Overlay mouse movement listener
     */
-    const onMouseMove = (event) => {
+    const onCanvasMouseMove = (event) => {
 
         //Renders a guide dot to show user where their brush will snap to, drawing or not.
         const rect = overlayCanvasRef.current.getBoundingClientRect();
@@ -503,7 +541,15 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
         const guidePoint = nearestGuidePoint(x, y, tileSize, snapDistance.current);
 
-        drawHoverGuide(overlayContext, guidePoint, deleteModeRef.current);
+        //Draws dots if not panning, clears otherwise.
+        if (paintModeRef.current !== "pan")
+        {
+            drawHoverGuide(overlayContext, guidePoint, deleteModeRef.current);
+        }
+        else
+        {
+            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+        }
 
         overlayContext.current.save();
 
@@ -633,6 +679,79 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         }
 
         overlayContext.current.restore();
+    }
+
+    /********************************************************************************
+     * Viewport Listeners
+     ********************************************************************************/
+
+    /**
+     * Viewport MouseDown Listener
+     */
+    const onViewportMouseDown = (event) =>
+    {
+        if (paintModeRef.current !== "pan")
+        {
+            return;
+        }
+
+        isPanningRef.current = true;
+
+        panningStartX.current = event.clientX;
+        panningStartY.current = event.clientY;
+
+        panningStartScrollLeft.current = viewportRef.current.scrollLeft;
+        panningStartScrollTop.current = viewportRef.current.scrollTop;
+
+        viewportRef.current.style.cursor = "grabbing";
+
+        //Prevents text selection and dragging quirks
+        event.preventDefault();
+    }
+
+    /**
+     * Viewport MouseMove Listener
+     */
+    const onViewportMouseMove = (event) =>
+    {
+        if (!isPanningRef.current)
+        {
+            return;
+        }
+
+        const panDistanceX = event.clientX - panningStartX.current;
+        const panDistanceY = event.clientY - panningStartY.current;
+
+        viewportRef.current.scrollLeft = panningStartScrollLeft.current - panDistanceX;
+        viewportRef.current.scrollTop = panningStartScrollTop.current - panDistanceY;
+    }
+
+    /**
+     * Viewport MouseUp Listener
+     */
+    const onViewportMouseUp = (event) =>
+    {
+        if (paintModeRef.current !== "pan")
+        {
+            return;
+        }
+
+        isPanningRef.current = false;
+        viewportRef.current.style.cursor = "grab";
+    }
+
+    /**
+     * Viewport MouseLeave Listener
+     */
+    const onViewportMouseLeave = (event) =>
+    {
+        if (paintModeRef.current !== "pan")
+        {
+            return;
+        }
+
+        isPanningRef.current = false;
+        viewportRef.current.style.cursor = "grab";
     }
 
     /**
@@ -840,6 +959,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
      * Tempory logging helper
      */
     const logger = () => {
+        console.log(paintModeRef.current)
         console.log(mapStateRef.current);
     }
 
@@ -862,14 +982,16 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 style={{display:"none"}}
                 onChange={handleMapImport} />
             </div>
-            <div style={{border: "solid 2px black", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
-                <canvas ref={stampCanvasRef} className="stamp-canvas"></canvas>
-                <canvas ref={lineCanvasRef} className="line-canvas"></canvas>
-                <canvas ref={overlayCanvasRef} className="overlay-canvas"></canvas>
-                <canvas ref={borderCanvasRef} className="border-canvas"></canvas>
-                <canvas ref={dotCanvasRef} className="dot-canvas"></canvas>
-                <canvas ref={solidCanvasRef} className="solid-canvas"></canvas>
-                <canvas ref={gridCanvasRef} className="grid-canvas"></canvas>   
+            <div id="viewport" className="map-viewport">
+                <div style={{position: " ", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
+                    <canvas ref={stampCanvasRef} className="stamp-canvas"></canvas>
+                    <canvas ref={lineCanvasRef} className="line-canvas"></canvas>
+                    <canvas ref={overlayCanvasRef} className="overlay-canvas"></canvas>
+                    <canvas ref={borderCanvasRef} className="border-canvas"></canvas>
+                    <canvas ref={dotCanvasRef} className="dot-canvas"></canvas>
+                    <canvas ref={solidCanvasRef} className="solid-canvas"></canvas>
+                    <canvas ref={gridCanvasRef} className="grid-canvas"></canvas>   
+                </div>
             </div>
             <div>
                 <button onClick={logger}>test</button>
