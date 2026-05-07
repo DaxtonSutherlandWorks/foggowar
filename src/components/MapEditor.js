@@ -55,6 +55,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     const panningStartScrollLeft = useRef(0);
     const panningStartScrollTop = useRef(0);
     const viewportRef = useRef(null);
+    const prePanModeRef = useRef(null);
 
     //Object refs
     const editorContextRef = useRef(null);
@@ -138,8 +139,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         solidContext.current.fillStyle = "#fdf8f0ff"
         solidContext.current.fillRect(0, 0, solidCanvasRef.current.width, solidCanvasRef.current.width);
 
-        //TODO: Condense listeners to handle panning better.
-        //TODO: Redo listeners to not trigger drawing on middle clicks. Research how to do that.
+        //TODO: Condense listeners to handle panning better, ideally to one canvas.
        //Listeners are made as class methods so they can be removed before being applied
        //This prevents the confusing and breaking behavior of listeners getting duplicated on a rerender.
        overlayCanvasRef.current.removeEventListener('mousedown', onCanvasMouseDown);
@@ -159,6 +159,9 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
        viewportRef.current.removeEventListener('mouseleave', onViewportMouseLeave);
        viewportRef.current.addEventListener('mouseleave', onViewportMouseLeave);
+
+       viewportRef.current.removeEventListener('contextmenu', blockContextMenu);
+       viewportRef.current.addEventListener('contextmenu', blockContextMenu);
 
         drawStaticGuides();
 
@@ -246,287 +249,300 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     */
     const onCanvasMouseDown = (event) => {
 
-            //Checks whether the cursor is in range of a guide point
-            let guidePoint = nearestGuidePoint(event.offsetX, event.offsetY, tileSize, snapDistance.current)
+        event.preventDefault();
 
-            //Click functions by mode
-            switch (paintModeRef.current)
-            {
-                case "line":
+        //Blocks right clicks and allows for panning with middle mouse
+        if (event.button === 2)
+        {
+            return;
+        }
+        else if (event.button === 1)
+        {
+            prePanModeRef.current = paintModeRef.current;
+            paintModeRef.current = "pan";
+        }
+            
+        //Checks whether the cursor is in range of a guide point
+        let guidePoint = nearestGuidePoint(event.offsetX, event.offsetY, tileSize, snapDistance.current)
 
-                    //Line deletion
-                    if (deleteModeRef.current)
-                    {
-                        //Only triggers if a valid line is within range
-                        if (guidePoint)
-                        {
-                            const line = findLineAtGuidePoint(
-                                guidePoint.x,
-                                guidePoint.y,
-                                mapStateRef.current.lines,
-                                16
-                            );
+        //Click functions by mode
+        switch (paintModeRef.current)
+        {
+            case "line":
 
-                            if (line)
-                            {
-                                commandManagerRef.current.execute(
-                                    new DeleteLineCommand(line)
-                                );
-                            }
-
-                        }
-                    }
-
-                    //First click of stroke
-                    else if (!paintingRef.current)
-                    {
-                        //If in range of a guide point, snaps to it
-                        if (guidePoint)
-                        {
-                            setPainting(true);
-                            startCoords.current = [guidePoint.x, guidePoint.y];
-                        }
-                        
-                    }
-
-                    //Terminate stroke
-                    else
-                    {
-                        //Only terminates in range of guide point, snaps to it
-                        if (guidePoint)
-                        {
-                            const line = {
-                                id: crypto.randomUUID(), 
-                                x1: startCoords.current[0], 
-                                y1: startCoords.current[1], 
-                                x2: guidePoint.x, 
-                                y2: guidePoint.y
-                            }
-                            //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
-                            commandManagerRef.current.execute(
-                                new DrawLineCommand(line)
-                            );
-
-                            //Clears the redo stack to avoid conflicts
-                            commandManagerRef.current.clearRedoStack();
-
-                            //Udates the painting state and clears the overlay preview
-                            setPainting(false);
-                            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
-                        }
-                    }
-                    break;
-
-                case "square":
-                    
-                    //First click of stroke
-                    if (!paintingRef.current)
-                    {
-                        //If in range of a guide point, snaps to it
-                        if (guidePoint)
-                        {
-                            setPainting(true);
-                            startCoords.current = [guidePoint.x, guidePoint.y];
-                        }
-                        
-                    }
-
-                    //Terminate stroke
-                    else
-                    {
-                        //Only terminates in range of guide point, snaps to it
-                        if (guidePoint)
-                        {
-                            const x1 = startCoords.current[0];
-                            const y1 = startCoords.current[1];
-                            const x2 = guidePoint.x;
-                            const y2 = guidePoint.y;
-
-                            //Normalize the rectange (set leftmost coords as first set) for consistent shape storage
-                            const normalizedRect = normalizeRectangleCoords(x1, y1, x2, y2);
-
-                            const rec = createShape(
-                                {
-                                    id: crypto.randomUUID(),
-                                    type: "rectangle",
-
-                                    x: normalizedRect.x,
-                                    y: normalizedRect.y,
-
-                                    width: normalizedRect.w,
-                                    height: normalizedRect.h,
-
-                                    operation: deleteModeRef.current ? "subtract" : "add"
-                                }
-                            )
-
-                            commandManagerRef.current.execute(
-                                new ClearShapeCommand(rec)
-                            );
-
-                            //Clears the redo stack to avoid conflicts
-                            commandManagerRef.current.clearRedoStack();
-
-                            setPainting(false);
-                            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width)
-
-                        }
-                    }
-                    break;
-
-                case "circle":
-                    
-                    //First click of stroke
-                    if (!paintingRef.current)
-                    {
-                        //If in range of a guide point, snaps to it
-                        if (guidePoint)
-                        {
-                            setPainting(true);
-                            startCoords.current = [guidePoint.x, guidePoint.y];
-                        }
-                        
-                    }
-
-                    //Terminate stroke
-                    else
-                    {
-                        //Only terminates in range of guide point, snaps to it
-                        if (guidePoint)
-                        {
-                            const x = startCoords.current[0];
-                            const y = startCoords.current[1];
-                            const r = Math.abs(Math.hypot((guidePoint.x - startCoords.current[0]), (guidePoint.y - startCoords.current[1])));
-
-                            const circ = createShape(
-                                {
-                                    id: crypto.randomUUID(),
-                                    type: "circle",
-
-                                    x: x,
-                                    y: y,
-                                    r: r,
-
-                                    operation: deleteModeRef.current ? "subtract" : "add"
-                                }
-                            )
-
-                            commandManagerRef.current.execute(
-                                new ClearShapeCommand(circ)
-                            );
-
-                            //Clears the redo stack to avoid conflicts
-                            commandManagerRef.current.clearRedoStack();
-
-                            setPainting(false);
-                            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
-                        }
-                    }
-                    break;
-
-                case "polygon":
-
-                    //Checks for a guide point in range
+                //Line deletion
+                if (deleteModeRef.current)
+                {
+                    //Only triggers if a valid line is within range
                     if (guidePoint)
                     {
+                        const line = findLineAtGuidePoint(
+                            guidePoint.x,
+                            guidePoint.y,
+                            mapStateRef.current.lines,
+                            16
+                        );
 
-                        //First click of stroke
-                        if (paintPoints.current.length === 0)
+                        if (line)
                         {
-                            paintPoints.current = [...paintPoints.current, guidePoint];
-                            setPainting(true);
+                            commandManagerRef.current.execute(
+                                new DeleteLineCommand(line)
+                            );
                         }
 
-                        else
-                        {
-                            //Checks if we're back at the start
-                            if (guidePoint.x === paintPoints.current[0].x && guidePoint.y === paintPoints.current[0].y)
-                            {
+                    }
+                }
 
-                                const poly = createShape(
-                                    {
-                                        id: crypto.randomUUID(),
-                                        type: "polygon",
+                //First click of stroke
+                else if (!paintingRef.current)
+                {
+                    //If in range of a guide point, snaps to it
+                    if (guidePoint)
+                    {
+                        setPainting(true);
+                        startCoords.current = [guidePoint.x, guidePoint.y];
+                    }
+                    
+                }
 
-                                        points: paintPoints.current,
-
-                                        operation: deleteModeRef.current ? "subtract" : "add"
-                                    }
-                                )
-                                
-                                commandManagerRef.current.execute(
-                                    new ClearShapeCommand(poly)
-                                );
-
-                                //Clears the redo stack to avoid conflicts
-                                commandManagerRef.current.clearRedoStack();
-
-                                paintPoints.current = [];
-                                setPainting(false);
-                                overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
-                            }
-                            else
-                            {
-                                paintPoints.current = [...paintPoints.current, guidePoint];
-                            }
+                //Terminate stroke
+                else
+                {
+                    //Only terminates in range of guide point, snaps to it
+                    if (guidePoint)
+                    {
+                        const line = {
+                            id: crypto.randomUUID(), 
+                            x1: startCoords.current[0], 
+                            y1: startCoords.current[1], 
+                            x2: guidePoint.x, 
+                            y2: guidePoint.y
                         }
+                        //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
+                        commandManagerRef.current.execute(
+                            new DrawLineCommand(line)
+                        );
+
+                        //Clears the redo stack to avoid conflicts
+                        commandManagerRef.current.clearRedoStack();
+
+                        //Udates the painting state and clears the overlay preview
+                        setPainting(false);
+                        overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
+                    }
+                }
+                break;
+
+            case "square":
+                
+                //First click of stroke
+                if (!paintingRef.current)
+                {
+                    //If in range of a guide point, snaps to it
+                    if (guidePoint)
+                    {
+                        setPainting(true);
+                        startCoords.current = [guidePoint.x, guidePoint.y];
+                    }
+                    
+                }
+
+                //Terminate stroke
+                else
+                {
+                    //Only terminates in range of guide point, snaps to it
+                    if (guidePoint)
+                    {
+                        const x1 = startCoords.current[0];
+                        const y1 = startCoords.current[1];
+                        const x2 = guidePoint.x;
+                        const y2 = guidePoint.y;
+
+                        //Normalize the rectange (set leftmost coords as first set) for consistent shape storage
+                        const normalizedRect = normalizeRectangleCoords(x1, y1, x2, y2);
+
+                        const rec = createShape(
+                            {
+                                id: crypto.randomUUID(),
+                                type: "rectangle",
+
+                                x: normalizedRect.x,
+                                y: normalizedRect.y,
+
+                                width: normalizedRect.w,
+                                height: normalizedRect.h,
+
+                                operation: deleteModeRef.current ? "subtract" : "add"
+                            }
+                        )
+
+                        commandManagerRef.current.execute(
+                            new ClearShapeCommand(rec)
+                        );
+
+                        //Clears the redo stack to avoid conflicts
+                        commandManagerRef.current.clearRedoStack();
+
+                        setPainting(false);
+                        overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width)
+
+                    }
+                }
+                break;
+
+            case "circle":
+                
+                //First click of stroke
+                if (!paintingRef.current)
+                {
+                    //If in range of a guide point, snaps to it
+                    if (guidePoint)
+                    {
+                        setPainting(true);
+                        startCoords.current = [guidePoint.x, guidePoint.y];
+                    }
+                    
+                }
+
+                //Terminate stroke
+                else
+                {
+                    //Only terminates in range of guide point, snaps to it
+                    if (guidePoint)
+                    {
+                        const x = startCoords.current[0];
+                        const y = startCoords.current[1];
+                        const r = Math.abs(Math.hypot((guidePoint.x - startCoords.current[0]), (guidePoint.y - startCoords.current[1])));
+
+                        const circ = createShape(
+                            {
+                                id: crypto.randomUUID(),
+                                type: "circle",
+
+                                x: x,
+                                y: y,
+                                r: r,
+
+                                operation: deleteModeRef.current ? "subtract" : "add"
+                            }
+                        )
+
+                        commandManagerRef.current.execute(
+                            new ClearShapeCommand(circ)
+                        );
+
+                        //Clears the redo stack to avoid conflicts
+                        commandManagerRef.current.clearRedoStack();
+
+                        setPainting(false);
+                        overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
+                    }
+                }
+                break;
+
+            case "polygon":
+
+                //Checks for a guide point in range
+                if (guidePoint)
+                {
+
+                    //First click of stroke
+                    if (paintPoints.current.length === 0)
+                    {
+                        paintPoints.current = [...paintPoints.current, guidePoint];
+                        setPainting(true);
                     }
 
-                    break;
-
-                case "stamp":
-
-                    if(guidePoint)
+                    else
                     {
-                        //Stamp Deletion
-                        if (deleteModeRef.current)
+                        //Checks if we're back at the start
+                        if (guidePoint.x === paintPoints.current[0].x && guidePoint.y === paintPoints.current[0].y)
                         {
-                            //Checks all stamps to find a match
-                            for (let i = mapStateRef.current.stamps.length - 1; i >= 0; i--)
-                            {
-                                if (guidePoint.x >= mapStateRef.current.stamps[i].x 
-                                    && guidePoint.x <= mapStateRef.current.stamps[i].x + mapStateRef.current.stamps[i].width
-                                    && guidePoint.y >= mapStateRef.current.stamps[i].y
-                                    && guidePoint.y <= mapStateRef.current.stamps[i].y + mapStateRef.current.stamps[i].height)
-                                    {
-                                        const stamp = mapStateRef.current.stamps[i];
 
-                                        commandManagerRef.current.execute(
-                                            new DeleteStampCommand(stamp)
-                                        );
-                                    }
-                            }
+                            const poly = createShape(
+                                {
+                                    id: crypto.randomUUID(),
+                                    type: "polygon",
 
+                                    points: paintPoints.current,
+
+                                    operation: deleteModeRef.current ? "subtract" : "add"
+                                }
+                            )
                             
-                        }
-
-                        //Checks if the stamp's potential area is clear
-                        else if (isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) && isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
-                        {
-                            const stamp = {
-                                id: crypto.randomUUID(), 
-                                imagePath: currStamp, 
-                                x: guidePoint.x, 
-                                y: guidePoint.y, 
-                                width: stampSize[0], 
-                                height: stampSize[1]
-                            };
-
-                            //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
                             commandManagerRef.current.execute(
-                                new DrawStampCommand(stamp)
+                                new ClearShapeCommand(poly)
                             );
 
                             //Clears the redo stack to avoid conflicts
                             commandManagerRef.current.clearRedoStack();
+
+                            paintPoints.current = [];
+                            setPainting(false);
+                            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
+                        }
+                        else
+                        {
+                            paintPoints.current = [...paintPoints.current, guidePoint];
                         }
                     }
-                    
-                    break;
+                }
+
+                break;
+
+            case "stamp":
+
+                if(guidePoint)
+                {
+                    //Stamp Deletion
+                    if (deleteModeRef.current)
+                    {
+                        //Checks all stamps to find a match
+                        for (let i = mapStateRef.current.stamps.length - 1; i >= 0; i--)
+                        {
+                            if (guidePoint.x >= mapStateRef.current.stamps[i].x 
+                                && guidePoint.x <= mapStateRef.current.stamps[i].x + mapStateRef.current.stamps[i].width
+                                && guidePoint.y >= mapStateRef.current.stamps[i].y
+                                && guidePoint.y <= mapStateRef.current.stamps[i].y + mapStateRef.current.stamps[i].height)
+                                {
+                                    const stamp = mapStateRef.current.stamps[i];
+
+                                    commandManagerRef.current.execute(
+                                        new DeleteStampCommand(stamp)
+                                    );
+                                }
+                        }
+
+                        
+                    }
+
+                    //Checks if the stamp's potential area is clear
+                    else if (isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) && isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
+                    {
+                        const stamp = {
+                            id: crypto.randomUUID(), 
+                            imagePath: currStamp, 
+                            x: guidePoint.x, 
+                            y: guidePoint.y, 
+                            width: stampSize[0], 
+                            height: stampSize[1]
+                        };
+
+                        //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
+                        commandManagerRef.current.execute(
+                            new DrawStampCommand(stamp)
+                        );
+
+                        //Clears the redo stack to avoid conflicts
+                        commandManagerRef.current.clearRedoStack();
+                    }
+                }
                 
-                default:
-                    return;
-            }
+                break;
+            
+            default:
+                return;
+        }
     }
 
     /**
@@ -736,8 +752,18 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             return;
         }
 
+        //Exits middle mouse pan mode and returns to previous brush
+        if (event.button === 1 && prePanModeRef.current !== "pan")
+        {
+            paintModeRef.current = prePanModeRef.current;
+            isPanningRef.current = false;
+            viewportRef.current.style.cursor = "default";
+            return;
+        }
+
         isPanningRef.current = false;
         viewportRef.current.style.cursor = "grab";
+
     }
 
     /**
@@ -752,6 +778,14 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
         isPanningRef.current = false;
         viewportRef.current.style.cursor = "grab";
+    }
+
+    /**
+     * Viewport ContextMenu Blocker
+     */
+    const blockContextMenu = (event) =>
+    {
+        event.preventDefault();
     }
 
     /**
