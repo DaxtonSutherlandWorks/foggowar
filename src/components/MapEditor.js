@@ -1,4 +1,6 @@
 //TODO: Phase 4, make a bunch of helper functions for listeners
+//  -Panning Helpers
+//  -Better utilize the editor context ref to cut down on helper params
 //TODO: Phase 5, shift to using pointer capture from mouse events
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
@@ -16,6 +18,11 @@ import { DeleteLineCommand } from "../classes/DeleteLineCommand";
 import { createInitialMapState } from "../helpers/MapState";
 import { createShape } from "../schemas/shapeSchema";
 import { applyViewportTransform, clampCamera, createInitialViewportState, getPointerData, screenToWorld } from "../helpers/ViewportUtils";
+import { linePointerDown, linePointerMove } from "../helpers/LineUtils";
+import { rectanglePointerDown, rectanglePointerMove } from "../helpers/RectUtils";
+import { circlePointerDown, circlePointerMove } from "../helpers/CircleUtils";
+import { polygonPointerDown, polygonPointerMove } from "../helpers/PolygonUtils";
+import { stampPointerDown, stampPointerMove } from "../helpers/StampUtils";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -30,30 +37,30 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
     const dotCanvasRef = useRef(null);
 
     //Context Refs
-    const lineContext = useRef(null);
-    const stampContext = useRef(null);
-    const gridContext = useRef(null);
-    const borderContext = useRef(null);
-    const overlayContext = useRef(null);
-    const solidContext = useRef(null);
-    const dotContext = useRef(null);
+    const lineContextRef = useRef(null);
+    const stampContextRef = useRef(null);
+    const gridContextRef = useRef(null);
+    const borderContextRef = useRef(null);
+    const overlayContextRef = useRef(null);
+    const solidContextRef = useRef(null);
+    const dotContextRef = useRef(null);
 
     //Canvas operation Refs
-    const startCoords = useRef([]);
-    const paintPoints = useRef([]);
-    const stampImage = useRef(null);
-    const brushColor = useRef("black");
-    const brushSize = useRef(3);
-    const guideRadius = useRef(2);
-    const guideHoverRadius = useRef(6);
-    const snapDistance = useRef(12);
+    const startCoordsRef = useRef([]);
+    const paintPointsRef = useRef([]);
+    const stampImageRef = useRef(null);
+    const brushColorRef = useRef("black");
+    const brushSizeRef = useRef(3);
+    const guideRadiusRef = useRef(2);
+    const guideHoverRadiusRef = useRef(6);
+    const snapDistanceRef = useRef(12);
 
     //Viewport Refs
     const isPanningRef = useRef(false);
-    const panningStartScreenX = useRef(0);
-    const panningStartScreenY = useRef(0);
-    const panningStartCameraX = useRef(0);
-    const panningStartCameraY = useRef(0);
+    const panningStartScreenXRef = useRef(0);
+    const panningStartScreenYRef = useRef(0);
+    const panningStartCameraXRef = useRef(0);
+    const panningStartCameraYRef = useRef(0);
     const viewportRef = useRef(null);
     const canvasStageRef = useRef(null);
     const viewportStateRef = useRef(createInitialViewportState());
@@ -79,11 +86,11 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
             lineCanvasRef,
             stampCanvasRef,
 
-            solidContext,
-            gridContext,
-            borderContext,
-            lineContext,
-            stampContext,
+            solidContext: solidContextRef,
+            gridContext: gridContextRef,
+            borderContext: borderContextRef,
+            lineContext: lineContextRef,
+            stampContext: stampContextRef,
 
             mapStateRef
         }
@@ -102,13 +109,13 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         }
 
         //Setting up contexts
-        lineContext.current = lineCanvasRef.current.getContext("2d");
-        stampContext.current = stampCanvasRef.current.getContext("2d");
-        gridContext.current = gridCanvasRef.current.getContext("2d");
-        borderContext.current = borderCanvasRef.current.getContext("2d");
-        overlayContext.current = overlayCanvasRef.current.getContext("2d");
-        solidContext.current = solidCanvasRef.current.getContext("2d");
-        dotContext.current = dotCanvasRef.current.getContext("2d");
+        lineContextRef.current = lineCanvasRef.current.getContext("2d");
+        stampContextRef.current = stampCanvasRef.current.getContext("2d");
+        gridContextRef.current = gridCanvasRef.current.getContext("2d");
+        borderContextRef.current = borderCanvasRef.current.getContext("2d");
+        overlayContextRef.current = overlayCanvasRef.current.getContext("2d");
+        solidContextRef.current = solidCanvasRef.current.getContext("2d");
+        dotContextRef.current = dotCanvasRef.current.getContext("2d");
 
         //Initializing viewport
         viewportRef.current = document.getElementById("viewport");
@@ -139,8 +146,8 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         dotCanvasRef.current.height = dimensions[0] * tileSize;
 
         //Sets up the solid canvas
-        solidContext.current.fillStyle = "#fdf8f0ff"
-        solidContext.current.fillRect(0, 0, solidCanvasRef.current.width, solidCanvasRef.current.width);
+        solidContextRef.current.fillStyle = "#fdf8f0ff"
+        solidContextRef.current.fillRect(0, 0, solidCanvasRef.current.width, solidCanvasRef.current.height);
 
        //Listeners are made as class methods so they can be removed before being applied
        //This prevents the confusing and breaking behavior of listeners getting duplicated on a rerender.
@@ -220,7 +227,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
     const loadStamp = (path) =>
     {
         if (!path) {
-            stampImage.current = null;
+            stampImageRef.current = null;
             return;
         }
 
@@ -228,11 +235,11 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         img.crossOrigin = "anonymous";
 
         img.onload = () => {
-            stampImage.current = img;
+            stampImageRef.current = img;
         };
 
         img.onerror = () => {
-            stampImage.current = null;
+            stampImageRef.current = null;
         };
 
         img.src = path;
@@ -265,11 +272,11 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         //Break out to handle panning
         if (interactionStateRef.current.mode === "panning")
         {
-            panningStartScreenX.current = pointer.screen.x;
-            panningStartScreenY.current = pointer.screen.y;
+            panningStartScreenXRef.current = pointer.screen.x;
+            panningStartScreenYRef.current = pointer.screen.y;
 
-            panningStartCameraX.current = viewportStateRef.current.cameraX;
-            panningStartCameraY.current = viewportStateRef.current.cameraY;
+            panningStartCameraXRef.current = viewportStateRef.current.cameraX;
+            panningStartCameraYRef.current = viewportStateRef.current.cameraY;
 
             interactionStateRef.current.grabbing = true;
 
@@ -282,279 +289,29 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         }
             
         //Checks whether the cursor is in range of a guide point
-        let guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistance.current)
+        let guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistanceRef.current)
 
         //Click functions by mode
         switch (interactionStateRef.current.tool)
         {
             case "line":
-
-                //Line deletion
-                if (interactionStateRef.current.deletion)
-                {
-                    //Only triggers if a valid line is within range
-                    if (guidePoint)
-                    {
-                        const line = findLineAtGuidePoint(
-                            guidePoint.x,
-                            guidePoint.y,
-                            mapStateRef.current.lines,
-                            16
-                        );
-
-                        if (line)
-                        {
-                            commandManagerRef.current.execute(
-                                new DeleteLineCommand(line)
-                            );
-                        }
-
-                    }
-                }
-
-                //First click of stroke
-                else if (interactionStateRef.current.mode !== "painting")
-                {
-                    //If in range of a guide point, snaps to it
-                    if (guidePoint)
-                    {
-                        interactionStateRef.current.mode = "painting";
-                        startCoords.current = [guidePoint.x, guidePoint.y];
-                    }
-                    
-                }
-
-                //Terminate stroke
-                else
-                {
-                    //Only terminates in range of guide point, snaps to it
-                    if (guidePoint)
-                    {
-                        const line = {
-                            id: crypto.randomUUID(), 
-                            x1: startCoords.current[0], 
-                            y1: startCoords.current[1], 
-                            x2: guidePoint.x, 
-                            y2: guidePoint.y
-                        }
-                        //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
-                        commandManagerRef.current.execute(
-                            new DrawLineCommand(line)
-                        );
-
-                        //Clears the redo stack to avoid conflicts
-                        commandManagerRef.current.clearRedoStack();
-
-                        //Udates the painting state and clears the overlay preview
-                        interactionStateRef.current.mode = "inactive";
-                        overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
-                    }
-                }
+                linePointerDown(interactionStateRef, guidePoint, mapStateRef, commandManagerRef, startCoordsRef, overlayContextRef, overlayCanvasRef)
                 break;
 
             case "square":
-                
-                //First click of stroke
-                if (interactionStateRef.current.mode !== "painting")
-                {
-                    //If in range of a guide point, snaps to it
-                    if (guidePoint)
-                    {
-                        interactionStateRef.current.mode = "painting";
-                        startCoords.current = [guidePoint.x, guidePoint.y];
-                    }
-                    
-                }
-
-                //Terminate stroke
-                else
-                {
-                    //Only terminates in range of guide point, snaps to it
-                    if (guidePoint)
-                    {
-                        const x1 = startCoords.current[0];
-                        const y1 = startCoords.current[1];
-                        const x2 = guidePoint.x;
-                        const y2 = guidePoint.y;
-
-                        //Normalize the rectange (set leftmost coords as first set) for consistent shape storage
-                        const normalizedRect = normalizeRectangleCoords(x1, y1, x2, y2);
-
-                        const rec = createShape(
-                            {
-                                id: crypto.randomUUID(),
-                                type: "rectangle",
-
-                                x: normalizedRect.x,
-                                y: normalizedRect.y,
-
-                                width: normalizedRect.w,
-                                height: normalizedRect.h,
-
-                                operation: interactionStateRef.current.deletion ? "subtract" : "add"
-                            }
-                        )
-
-                        commandManagerRef.current.execute(
-                            new ClearShapeCommand(rec)
-                        );
-
-                        //Clears the redo stack to avoid conflicts
-                        commandManagerRef.current.clearRedoStack();
-
-                        interactionStateRef.current.mode = "inactive";
-                        overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width)
-
-                    }
-                }
+                rectanglePointerDown(interactionStateRef, guidePoint, startCoordsRef, commandManagerRef, overlayContextRef, overlayCanvasRef);
                 break;
 
             case "circle":
-                
-                //First click of stroke
-                if (interactionStateRef.current.mode !== "painting")
-                {
-                    //If in range of a guide point, snaps to it
-                    if (guidePoint)
-                    {
-                        interactionStateRef.current.mode = "painting";
-                        startCoords.current = [guidePoint.x, guidePoint.y];
-                    }
-                    
-                }
-
-                //Terminate stroke
-                else
-                {
-                    //Only terminates in range of guide point, snaps to it
-                    if (guidePoint)
-                    {
-                        const x = startCoords.current[0];
-                        const y = startCoords.current[1];
-                        const r = Math.abs(Math.hypot((guidePoint.x - startCoords.current[0]), (guidePoint.y - startCoords.current[1])));
-
-                        const circ = createShape(
-                            {
-                                id: crypto.randomUUID(),
-                                type: "circle",
-
-                                x: x,
-                                y: y,
-                                r: r,
-
-                                operation: interactionStateRef.current.deletion ? "subtract" : "add"
-                            }
-                        )
-
-                        commandManagerRef.current.execute(
-                            new ClearShapeCommand(circ)
-                        );
-
-                        //Clears the redo stack to avoid conflicts
-                        commandManagerRef.current.clearRedoStack();
-
-                        interactionStateRef.current.mode = "inactive";
-                        overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
-                    }
-                }
+                circlePointerDown(interactionStateRef, guidePoint, startCoordsRef, commandManagerRef, overlayContextRef, overlayCanvasRef);
                 break;
 
             case "polygon":
-
-                //Checks for a guide point in range
-                if (guidePoint)
-                {
-
-                    //First click of stroke
-                    if (paintPoints.current.length === 0)
-                    {
-                        paintPoints.current = [...paintPoints.current, guidePoint];
-                        interactionStateRef.current.mode = "painting";
-                    }
-
-                    else
-                    {
-                        //Checks if we're back at the start
-                        if (guidePoint.x === paintPoints.current[0].x && guidePoint.y === paintPoints.current[0].y)
-                        {
-
-                            const poly = createShape(
-                                {
-                                    id: crypto.randomUUID(),
-                                    type: "polygon",
-                                    points: paintPoints.current,
-                                    operation: interactionStateRef.current.deletion ? "subtract" : "add"
-                                }
-                            )
-                            
-                            commandManagerRef.current.execute(
-                                new ClearShapeCommand(poly)
-                            );
-
-                            //Clears the redo stack to avoid conflicts
-                            commandManagerRef.current.clearRedoStack();
-
-                            paintPoints.current = [];
-                            interactionStateRef.current.mode = "inactive";
-                            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
-                        }
-                        else
-                        {
-                            paintPoints.current = [...paintPoints.current, guidePoint];
-                        }
-                    }
-                }
-
+                polygonPointerDown(guidePoint, paintPointsRef, interactionStateRef, commandManagerRef, overlayContextRef, overlayCanvasRef);
                 break;
 
             case "stamp":
-
-                if(guidePoint)
-                {
-                    //Stamp Deletion
-                    if (interactionStateRef.current.deletion)
-                    {
-                        //Checks all stamps to find a match
-                        for (let i = mapStateRef.current.stamps.length - 1; i >= 0; i--)
-                        {
-                            if (guidePoint.x >= mapStateRef.current.stamps[i].x 
-                                && guidePoint.x <= mapStateRef.current.stamps[i].x + mapStateRef.current.stamps[i].width
-                                && guidePoint.y >= mapStateRef.current.stamps[i].y
-                                && guidePoint.y <= mapStateRef.current.stamps[i].y + mapStateRef.current.stamps[i].height)
-                                {
-                                    const stamp = mapStateRef.current.stamps[i];
-
-                                    commandManagerRef.current.execute(
-                                        new DeleteStampCommand(stamp)
-                                    );
-                                }
-                        }
-
-                        
-                    }
-
-                    //Checks if the stamp's potential area is clear
-                    else if (isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) && isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
-                    {
-                        const stamp = {
-                            id: crypto.randomUUID(), 
-                            imagePath: currStamp, 
-                            x: guidePoint.x, 
-                            y: guidePoint.y, 
-                            width: stampSize[0], 
-                            height: stampSize[1]
-                        };
-
-                        //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
-                        commandManagerRef.current.execute(
-                            new DrawStampCommand(stamp)
-                        );
-
-                        //Clears the redo stack to avoid conflicts
-                        commandManagerRef.current.clearRedoStack();
-                    }
-                }
-                
+                stampPointerDown(guidePoint, interactionStateRef, mapStateRef, commandManagerRef, solidContextRef, stampContextRef, currStamp, stampSize);
                 break;
             
             default:
@@ -568,30 +325,28 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
     const onPointerMove = (event) => {
 
         //Renders a guide dot to show user where their brush will snap to, drawing or not.
-        const rect = overlayCanvasRef.current.getBoundingClientRect();
-        
         const pointer = getPointerData(event, viewportRef.current, viewportStateRef.current);
 
-        const guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistance.current);
+        const guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistanceRef.current);
 
         //Draws active guide dot if not panning, clears old ones otherwise.
         if (interactionStateRef.current.mode !== "panning")
         {
-            drawHoverGuide(overlayContext, guidePoint, interactionStateRef.current.deletion);
+            drawHoverGuide(overlayContextRef, guidePoint, interactionStateRef.current.deletion);
         }
         else
         {
-            overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+            overlayContextRef.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
 
             if (interactionStateRef.current.grabbing)
             {
                 //Calculates length of pan
-                const panDistanceX = pointer.screen.x - panningStartScreenX.current;
-                const panDistanceY = pointer.screen.y - panningStartScreenY.current;
+                const panDistanceX = pointer.screen.x - panningStartScreenXRef.current;
+                const panDistanceY = pointer.screen.y - panningStartScreenYRef.current;
 
                 //Documents current pan coords
-                viewportStateRef.current.cameraX = panningStartCameraX.current + panDistanceX;
-                viewportStateRef.current.cameraY = panningStartCameraY.current + panDistanceY;
+                viewportStateRef.current.cameraX = panningStartCameraXRef.current + panDistanceX;
+                viewportStateRef.current.cameraY = panningStartCameraYRef.current + panDistanceY;
 
                 //Takes the current pan coords and forces them to reenter the map if they had gotten out of bounds
                 clampCamera(viewportStateRef.current, viewportRef.current.clientWidth, viewportRef.current.clientHeight, gridCanvasRef.current.width, gridCanvasRef.current.height);
@@ -601,134 +356,35 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
             }
         }
 
-        overlayContext.current.save();
+        overlayContextRef.current.save();
 
         switch (interactionStateRef.current.tool)
         {
             case "line":
-
-                //Ignore movements unless painting
-                if (interactionStateRef.current.mode !== "painting")
-                {
-                    return;
-                }
-
-                overlayContext.current.beginPath();
-                overlayContext.current.moveTo(startCoords.current[0], startCoords.current[1]);
-                overlayContext.current.lineTo(pointer.world.x, pointer.world.y);
-                overlayContext.current.lineWidth = brushSize.current;
-
-                //Changes preview line color based on if it has a valid placement
-                guidePoint ? overlayContext.current.strokeStyle = brushColor.current : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)"
-
-                overlayContext.current.stroke();
+                linePointerMove(interactionStateRef, overlayContextRef, startCoordsRef, pointer, brushSizeRef, brushColorRef, guidePoint);
                 break;
 
             case "square":
-
-                //Ignore movements unless painting
-                if (interactionStateRef.current.mode !== "painting")
-                {
-                    return;
-                }
-
-                overlayContext.current.beginPath();
-                overlayContext.current.lineWidth = brushSize.current;
-                overlayContext.current.rect(startCoords.current[0], startCoords.current[1], pointer.world.x - startCoords.current[0], pointer.world.y - startCoords.current[1]);
-
-                //Changes preview line color based on if it has a valid placement
-                if(!guidePoint)
-                {
-                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
-                }
-                else
-                {
-                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
-                }
-
-                overlayContext.current.stroke();
+                rectanglePointerMove(interactionStateRef, overlayContextRef, brushSizeRef, startCoordsRef, pointer, guidePoint, brushColorRef);
                 break;
 
             case "circle":
-
-                //Ignore movements unless painting
-                if (interactionStateRef.current.mode !== "painting")
-                {
-                    return;
-                }
-
-                overlayContext.current.beginPath();
-                overlayContext.current.arc(startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((pointer.world.x - startCoords.current[0]), (pointer.world.y - startCoords.current[1]))), 0, 2 * Math.PI);
-                overlayContext.current.lineWidth = brushSize.current;
-
-                //Changes preview line color based on if it has a valid placement
-                if(!guidePoint)
-                {
-                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
-                }
-                else
-                {
-                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
-                }
-
-                overlayContext.current.stroke();
+                circlePointerMove(interactionStateRef, overlayContextRef, startCoordsRef, pointer, brushSizeRef, guidePoint, brushColorRef);
                 break;
 
             case "polygon":
-                
-                //Ignore movements unless painting
-                if (interactionStateRef.current.mode !== "painting")
-                {
-                    return;
-                }
-
-                overlayContext.current.lineWidth = brushSize.current;
-
-                //Changes preview line color based on if it has a valid placement
-                if(!guidePoint)
-                {
-                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
-                }
-                else
-                {
-                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
-                }
-
-                overlayContext.current.beginPath();
-                overlayContext.current.moveTo(paintPoints.current[0].x, paintPoints.current[0].y)
-
-                for (let i = 1; i < paintPoints.current.length; i++)
-                {
-                    overlayContext.current.lineTo(paintPoints.current[i].x, paintPoints.current[i].y);
-                }
-
-                overlayContext.current.lineTo(pointer.world.x, pointer.world.y);
-                overlayContext.current.stroke();
+                polygonPointerMove(interactionStateRef, overlayContextRef, brushSizeRef, guidePoint, paintPointsRef, brushColorRef, pointer);
                 break;
 
             case "stamp":
-
-                if (guidePoint && !interactionStateRef.current.deletion && interactionStateRef.current.mode === "inactive")
-                {
-
-                    overlayContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
-                    
-                    if (!isSquareCleared(solidContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) || !isSquareCleared(stampContext.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
-                    {
-                        overlayContext.current.globalCompositeOperation = "source-atop";
-                        overlayContext.current.fillStyle = "red";
-                        overlayContext.current.fillRect(guidePoint.x + 6, guidePoint.y, stampSize[0], stampSize[1]);
-                    }
-                    
-                }
-                
-                break;
+                stampPointerMove(guidePoint, interactionStateRef, overlayContextRef, stampImageRef, stampSize, solidContextRef, stampContextRef);
+                break;        
 
             default:
                 return;
         }
 
-        overlayContext.current.restore();
+        overlayContextRef.current.restore();
     }
 
     /**
@@ -828,9 +484,9 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
      */
     const drawStaticGuides = () => {
 
-        gridContext.current.fillStyle = "#000000";
+        gridContextRef.current.fillStyle = "#000000";
 
-        const { width, height } = gridContext.current.canvas;
+        const { width, height } = gridContextRef.current.canvas;
 
         const cols = Math.ceil(width / tileSize);
         const rows = Math.ceil(height / tileSize);
@@ -839,12 +495,12 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         for (let i = 0; i <= cols; i++)
         {
             //Draws a gridline for this column
-            gridContext.current.beginPath();
-            gridContext.current.moveTo(i * tileSize, 0);
-            gridContext.current.lineTo(i * tileSize, gridContext.current.canvas.height);
-            gridContext.current.lineWidth = 1;
-            gridContext.current.strokeStyle = "#7a7a7aff";
-            gridContext.current.stroke();
+            gridContextRef.current.beginPath();
+            gridContextRef.current.moveTo(i * tileSize, 0);
+            gridContextRef.current.lineTo(i * tileSize, gridContextRef.current.canvas.height);
+            gridContextRef.current.lineWidth = 1;
+            gridContextRef.current.strokeStyle = "#7a7a7aff";
+            gridContextRef.current.stroke();
             
             for (let j = 0; j <= rows; j++)
             {
@@ -854,29 +510,29 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
                 //Draws a gridline for this row once
                 if (i === 0)
                 {
-                    gridContext.current.beginPath();
-                    gridContext.current.moveTo(0, j * tileSize);
-                    gridContext.current.lineTo(gridContext.current.canvas.width, j * tileSize);
-                    gridContext.current.lineWidth = 1;
-                    gridContext.current.strokeStyle = "#7a7a7aff";
-                    gridContext.current.stroke();
+                    gridContextRef.current.beginPath();
+                    gridContextRef.current.moveTo(0, j * tileSize);
+                    gridContextRef.current.lineTo(gridContextRef.current.canvas.width, j * tileSize);
+                    gridContextRef.current.lineWidth = 1;
+                    gridContextRef.current.strokeStyle = "#7a7a7aff";
+                    gridContextRef.current.stroke();
                 }
 
                 //Corners
-                drawDot(dotContext, x, y, guideRadius.current);
+                drawDot(dotContextRef, x, y, guideRadiusRef.current);
 
                 //Line Midpoints
                 if (x + tileSize <= width)
                 {
-                    drawDot(dotContext, x + (tileSize / 2), y, guideRadius.current)
+                    drawDot(dotContextRef, x + (tileSize / 2), y, guideRadiusRef.current)
                 }
                 if (y + tileSize <= height)
                 {
-                    drawDot(dotContext, x, y + (tileSize / 2), guideRadius.current)
+                    drawDot(dotContextRef, x, y + (tileSize / 2), guideRadiusRef.current)
                 }
 
                 //Center Point
-                drawDot(dotContext, x + (tileSize / 2), y + (tileSize / 2), guideRadius.current)
+                drawDot(dotContextRef, x + (tileSize / 2), y + (tileSize / 2), guideRadiusRef.current)
             }
         }
     }
@@ -915,7 +571,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         
         //Draws the new guide dot
         context.current.beginPath();
-        context.current.arc(dot.x, dot.y, guideHoverRadius.current, 0, Math.PI * 2);
+        context.current.arc(dot.x, dot.y, guideHoverRadiusRef.current, 0, Math.PI * 2);
         context.current.fill();
     }
 
@@ -1025,7 +681,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
     }
 
     /**
-     * Tempory logging helper
+     * Temporary logging helper
      */
     const logger = () => {
         console.log(interactionStateRef.current)
