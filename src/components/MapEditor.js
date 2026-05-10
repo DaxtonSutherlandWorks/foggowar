@@ -1,3 +1,5 @@
+//TODO: comment, upload, oraganize.
+
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
@@ -13,6 +15,7 @@ import { DeleteStampCommand } from "../classes/DeleteStampCommand";
 import { DeleteLineCommand } from "../classes/DeleteLineCommand";
 import { createInitialMapState } from "../helpers/MapState";
 import { createShape } from "../schemas/shapeSchema";
+import { applyViewportTransform, clampCamera, createInitialViewportState, screenToWorld } from "../helpers/ViewportUtils";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -52,9 +55,11 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     const isPanningRef = useRef(false);
     const panningStartX = useRef(0);
     const panningStartY = useRef(0);
-    const panningStartScrollLeft = useRef(0);
-    const panningStartScrollTop = useRef(0);
+    const panningStartCameraX = useRef(0);
+    const panningStartCameraY = useRef(0);
     const viewportRef = useRef(null);
+    const canvasStageRef = useRef(null);
+    const viewportStateRef = useRef(createInitialViewportState());
     const prePanModeRef = useRef(null);
 
     //Object refs
@@ -162,6 +167,9 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
        viewportRef.current.removeEventListener('contextmenu', blockContextMenu);
        viewportRef.current.addEventListener('contextmenu', blockContextMenu);
+
+       viewportRef.current.removeEventListener('wheel', onViewportWheel);
+       viewportRef.current.addEventListener('wheel', onViewportWheel, {passive: false});
 
         drawStaticGuides();
 
@@ -463,9 +471,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                                 {
                                     id: crypto.randomUUID(),
                                     type: "polygon",
-
                                     points: paintPoints.current,
-
                                     operation: deleteModeRef.current ? "subtract" : "add"
                                 }
                             )
@@ -552,12 +558,16 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
         //Renders a guide dot to show user where their brush will snap to, drawing or not.
         const rect = overlayCanvasRef.current.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        
+        //Translates click coordinates to world space to account for canvas resizing
+        const coords = screenToWorld(event.clientX - rect.left, event.clientY - rect.top, viewportStateRef.current);
+
+        const x = coords.x;
+        const y = coords.y;
 
         const guidePoint = nearestGuidePoint(x, y, tileSize, snapDistance.current);
 
-        //Draws dots if not panning, clears otherwise.
+        //Draws active guide dot if not panning, clears old ones otherwise.
         if (paintModeRef.current !== "pan")
         {
             drawHoverGuide(overlayContext, guidePoint, deleteModeRef.current);
@@ -706,6 +716,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
      */
     const onViewportMouseDown = (event) =>
     {
+        //Abort if not panning
         if (paintModeRef.current !== "pan")
         {
             return;
@@ -716,8 +727,8 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         panningStartX.current = event.clientX;
         panningStartY.current = event.clientY;
 
-        panningStartScrollLeft.current = viewportRef.current.scrollLeft;
-        panningStartScrollTop.current = viewportRef.current.scrollTop;
+        panningStartCameraX.current = viewportStateRef.current.cameraX;
+        panningStartCameraY.current = viewportStateRef.current.cameraY;
 
         viewportRef.current.style.cursor = "grabbing";
 
@@ -730,16 +741,26 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
      */
     const onViewportMouseMove = (event) =>
     {
+        //Abort if not panning
         if (!isPanningRef.current)
         {
             return;
         }
 
+        //Calculates length of pan
         const panDistanceX = event.clientX - panningStartX.current;
         const panDistanceY = event.clientY - panningStartY.current;
 
-        viewportRef.current.scrollLeft = panningStartScrollLeft.current - panDistanceX;
-        viewportRef.current.scrollTop = panningStartScrollTop.current - panDistanceY;
+        //Documents current pan coords
+        viewportStateRef.current.cameraX = panningStartCameraX.current + panDistanceX;
+        viewportStateRef.current.cameraY = panningStartCameraY.current + panDistanceY;
+
+        //Takes the current pan coords and forces them to reenter the map if they had gotten out of bounds
+        clampCamera(viewportStateRef.current, viewportRef.current.clientWidth, viewportRef.current.clientHeight, gridCanvasRef.current.width, gridCanvasRef.current.height);
+
+        //Updates visuals
+        applyViewportTransform(viewportStateRef.current, canvasStageRef.current);
+
     }
 
     /**
@@ -787,6 +808,59 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     {
         event.preventDefault();
     }
+
+    /**
+     * Viewport MouseWheel Listener
+     */
+    const onViewportWheel = (event) => {
+
+        event.preventDefault();
+
+        //Zoom math
+
+        //Translate mouse wheel delta (scroll ammount with direction shown by sign) into a +/-10% factor to use for scaling
+        const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
+
+        const oldZoom = viewportStateRef.current.zoom;
+
+        let newZoom = oldZoom * zoomFactor;
+
+        //Locks zoom to set max/min
+        newZoom = Math.max(
+            viewportStateRef.current.minZoom,
+            Math.min(
+                viewportStateRef.current.maxZoom,
+                newZoom
+            )
+        );
+
+        //Panning math
+
+        const rect = viewportRef.current.getBoundingClientRect();
+
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        //Translate screen coords to world coords
+        const worldPos = screenToWorld(
+            mouseX,
+            mouseY,
+            viewportStateRef.current
+        );
+
+        //Applying transformations
+
+        //Zoom
+        viewportStateRef.current.zoom = newZoom;
+
+        //Panning
+        viewportStateRef.current.cameraX = mouseX - (worldPos.x * newZoom);
+        viewportStateRef.current.cameraY = mouseY - (worldPos.y * newZoom);
+
+        clampCamera(viewportStateRef.current, viewportRef.current.clientWidth, viewportRef.current.clientHeight, gridCanvasRef.current.width, gridCanvasRef.current.height);
+
+        applyViewportTransform(viewportStateRef.current, canvasStageRef.current);
+    };
 
     /**
      * Draws the guide dots along with the grid
@@ -995,6 +1069,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     const logger = () => {
         console.log(paintModeRef.current)
         console.log(mapStateRef.current);
+        console.log(viewportStateRef.current)
     }
 
     /***********************************************************************
@@ -1017,14 +1092,16 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 onChange={handleMapImport} />
             </div>
             <div id="viewport" className="map-viewport">
-                <div style={{position: " ", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
-                    <canvas ref={stampCanvasRef} className="stamp-canvas"></canvas>
-                    <canvas ref={lineCanvasRef} className="line-canvas"></canvas>
-                    <canvas ref={overlayCanvasRef} className="overlay-canvas"></canvas>
-                    <canvas ref={borderCanvasRef} className="border-canvas"></canvas>
-                    <canvas ref={dotCanvasRef} className="dot-canvas"></canvas>
-                    <canvas ref={solidCanvasRef} className="solid-canvas"></canvas>
-                    <canvas ref={gridCanvasRef} className="grid-canvas"></canvas>   
+                <div ref={canvasStageRef} className="canvas-stage">
+                    <div style={{position: " ", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
+                        <canvas ref={stampCanvasRef} className="stamp-canvas"></canvas>
+                        <canvas ref={lineCanvasRef} className="line-canvas"></canvas>
+                        <canvas ref={overlayCanvasRef} className="overlay-canvas"></canvas>
+                        <canvas ref={borderCanvasRef} className="border-canvas"></canvas>
+                        <canvas ref={dotCanvasRef} className="dot-canvas"></canvas>
+                        <canvas ref={solidCanvasRef} className="solid-canvas"></canvas>
+                        <canvas ref={gridCanvasRef} className="grid-canvas"></canvas>   
+                    </div>
                 </div>
             </div>
             <div>
