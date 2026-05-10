@@ -1,3 +1,4 @@
+//TODO: Commit notes: Merged canvas listerners, merged many brush/pan trackers into one state ref.
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
@@ -16,7 +17,7 @@ import { createShape } from "../schemas/shapeSchema";
 import { applyViewportTransform, clampCamera, createInitialViewportState, getPointerData, screenToWorld } from "../helpers/ViewportUtils";
 
 //Set up as class in order to access React.createRef
-const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, currStamp, stampSize, tileSize}) => {
+const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, currStamp, stampSize, tileSize}) => {
 
     //Canvas Refs
     const lineCanvasRef = useRef(null);
@@ -37,9 +38,6 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     const dotContext = useRef(null);
 
     //Canvas operation Refs
-    const paintModeRef = useRef(paintMode);
-    const deleteModeRef = useRef(deleteMode);
-    const paintingRef = useRef(painting);
     const startCoords = useRef([]);
     const paintPoints = useRef([]);
     const stampImage = useRef(null);
@@ -64,6 +62,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     const editorContextRef = useRef(null);
     const commandManagerRef = useRef(null);
     const mapStateRef = useRef(createInitialMapState(dimensions, tileSize));
+    const interactionStateRef = useRef({mode: "painting", tool: paintMode, deletion: deleteMode, grabbing: false, middlePan: false});
 
     //Toolbar Refs
     const mapUploadRef = useRef(null);
@@ -142,32 +141,25 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         solidContext.current.fillStyle = "#fdf8f0ff"
         solidContext.current.fillRect(0, 0, solidCanvasRef.current.width, solidCanvasRef.current.width);
 
-        //TODO: Condense listeners to handle panning better, ideally to one canvas.
        //Listeners are made as class methods so they can be removed before being applied
        //This prevents the confusing and breaking behavior of listeners getting duplicated on a rerender.
-       overlayCanvasRef.current.removeEventListener('mousedown', onCanvasMouseDown);
-       overlayCanvasRef.current.addEventListener('mousedown', onCanvasMouseDown);
+       overlayCanvasRef.current.removeEventListener('mousedown', onPointerDown);
+       overlayCanvasRef.current.addEventListener('mousedown', onPointerDown);
 
-       overlayCanvasRef.current.removeEventListener('mousemove', onCanvasMouseMove);
-       overlayCanvasRef.current.addEventListener('mousemove', onCanvasMouseMove);
+       overlayCanvasRef.current.removeEventListener('mousemove', onPointerMove);
+       overlayCanvasRef.current.addEventListener('mousemove', onPointerMove);
 
-       viewportRef.current.removeEventListener('mousedown', onViewportMouseDown);
-       viewportRef.current.addEventListener('mousedown', onViewportMouseDown);
+       viewportRef.current.removeEventListener('mouseup', onPointerUp);
+       viewportRef.current.addEventListener('mouseup', onPointerUp);
 
-       viewportRef.current.removeEventListener('mousemove', onViewportMouseMove);
-       viewportRef.current.addEventListener('mousemove', onViewportMouseMove);
-
-       viewportRef.current.removeEventListener('mouseup', onViewportMouseUp);
-       viewportRef.current.addEventListener('mouseup', onViewportMouseUp);
-
-       viewportRef.current.removeEventListener('mouseleave', onViewportMouseLeave);
-       viewportRef.current.addEventListener('mouseleave', onViewportMouseLeave);
+       viewportRef.current.removeEventListener('mouseleave', onPointerLeave);
+       viewportRef.current.addEventListener('mouseleave', onPointerLeave);
 
        viewportRef.current.removeEventListener('contextmenu', blockContextMenu);
        viewportRef.current.addEventListener('contextmenu', blockContextMenu);
 
-       viewportRef.current.removeEventListener('wheel', onViewportWheel);
-       viewportRef.current.addEventListener('wheel', onViewportWheel, {passive: false});
+       viewportRef.current.removeEventListener('wheel', onPointerWheel);
+       viewportRef.current.addEventListener('wheel', onPointerWheel, {passive: false});
 
         drawStaticGuides();
 
@@ -186,13 +178,22 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     }, [currStamp]);
 
     /**
-     * Updates the paintmode when changed in parent
+     * Updates the paintTool when changed in parent
      */
     useEffect(() => {
         
-        paintModeRef.current = paintMode;
+        interactionStateRef.current.tool = paintTool;
 
-        if (paintMode === "pan")
+    }, [paintTool]);
+
+    /**
+     * Updates the paintMode when changed in parent
+     */
+    useEffect(() => {
+        
+        interactionStateRef.current.mode = paintMode;
+
+        if (paintMode === "panning")
         {
             viewportRef.current.style.cursor = "grab";
         }
@@ -200,26 +201,16 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         {
             viewportRef.current.style.cursor = "default";
         }
-
-    }, [paintMode]);
+    }, [paintMode])
 
     /**
      * Updates delete mode when changed in parent
      */
     useEffect(() => {
 
-        deleteModeRef.current = deleteMode;
+        interactionStateRef.current.deletion = deleteMode;
 
     }, [deleteMode]);
-
-    /**
-     * Updates the painting state
-     */
-    useEffect(() => {
-
-        paintingRef.current = painting;
-
-    }, [painting]);
 
     /**
      * Loads the current stamp into an image that can be drawn on a canvas
@@ -247,13 +238,13 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     };
 
     /********************************************************************************
-     * Canvas Listeners
+     * Overlay Canvas Listeners
      ********************************************************************************/
 
     /**
     * Overlay mouse click listener
     */
-    const onCanvasMouseDown = (event) => {
+    const onPointerDown = (event) => {
 
         event.preventDefault();
 
@@ -262,24 +253,43 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         {
             return;
         }
-        else if (event.button === 1)
+        else if (event.button === 1 && interactionStateRef.current.mode !== "panning")
         {
-            prePanModeRef.current = paintModeRef.current;
-            paintModeRef.current = "pan";
+            interactionStateRef.current.middlePan = true;
+            interactionStateRef.current.mode = "panning";
         }
 
         const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
+
+        //Break out to handle panning
+        if (interactionStateRef.current.mode === "panning")
+        {
+            panningStartScreenX.current = pointer.screen.x;
+            panningStartScreenY.current = pointer.screen.y;
+
+            panningStartCameraX.current = viewportStateRef.current.cameraX;
+            panningStartCameraY.current = viewportStateRef.current.cameraY;
+
+            interactionStateRef.current.grabbing = true;
+
+            viewportRef.current.style.cursor = "grabbing";
+
+            //Prevents text selection and dragging quirks
+            event.preventDefault();
+
+            return;
+        }
             
         //Checks whether the cursor is in range of a guide point
         let guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistance.current)
 
         //Click functions by mode
-        switch (paintModeRef.current)
+        switch (interactionStateRef.current.tool)
         {
             case "line":
 
                 //Line deletion
-                if (deleteModeRef.current)
+                if (interactionStateRef.current.deletion)
                 {
                     //Only triggers if a valid line is within range
                     if (guidePoint)
@@ -302,12 +312,12 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 }
 
                 //First click of stroke
-                else if (!paintingRef.current)
+                else if (interactionStateRef.current.mode !== "painting")
                 {
                     //If in range of a guide point, snaps to it
                     if (guidePoint)
                     {
-                        setPainting(true);
+                        interactionStateRef.current.mode = "painting";
                         startCoords.current = [guidePoint.x, guidePoint.y];
                     }
                     
@@ -335,7 +345,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                         commandManagerRef.current.clearRedoStack();
 
                         //Udates the painting state and clears the overlay preview
-                        setPainting(false);
+                        interactionStateRef.current.mode = "inactive";
                         overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                     }
                 }
@@ -344,12 +354,12 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             case "square":
                 
                 //First click of stroke
-                if (!paintingRef.current)
+                if (interactionStateRef.current.mode !== "painting")
                 {
                     //If in range of a guide point, snaps to it
                     if (guidePoint)
                     {
-                        setPainting(true);
+                        interactionStateRef.current.mode = "painting";
                         startCoords.current = [guidePoint.x, guidePoint.y];
                     }
                     
@@ -380,7 +390,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                                 width: normalizedRect.w,
                                 height: normalizedRect.h,
 
-                                operation: deleteModeRef.current ? "subtract" : "add"
+                                operation: interactionStateRef.current.deletion ? "subtract" : "add"
                             }
                         )
 
@@ -391,7 +401,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                         //Clears the redo stack to avoid conflicts
                         commandManagerRef.current.clearRedoStack();
 
-                        setPainting(false);
+                        interactionStateRef.current.mode = "inactive";
                         overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width)
 
                     }
@@ -401,12 +411,12 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             case "circle":
                 
                 //First click of stroke
-                if (!paintingRef.current)
+                if (interactionStateRef.current.mode !== "painting")
                 {
                     //If in range of a guide point, snaps to it
                     if (guidePoint)
                     {
-                        setPainting(true);
+                        interactionStateRef.current.mode = "painting";
                         startCoords.current = [guidePoint.x, guidePoint.y];
                     }
                     
@@ -431,7 +441,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                                 y: y,
                                 r: r,
 
-                                operation: deleteModeRef.current ? "subtract" : "add"
+                                operation: interactionStateRef.current.deletion ? "subtract" : "add"
                             }
                         )
 
@@ -442,7 +452,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                         //Clears the redo stack to avoid conflicts
                         commandManagerRef.current.clearRedoStack();
 
-                        setPainting(false);
+                        interactionStateRef.current.mode = "inactive";
                         overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                     }
                 }
@@ -458,7 +468,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                     if (paintPoints.current.length === 0)
                     {
                         paintPoints.current = [...paintPoints.current, guidePoint];
-                        setPainting(true);
+                        interactionStateRef.current.mode = "painting";
                     }
 
                     else
@@ -472,7 +482,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                                     id: crypto.randomUUID(),
                                     type: "polygon",
                                     points: paintPoints.current,
-                                    operation: deleteModeRef.current ? "subtract" : "add"
+                                    operation: interactionStateRef.current.deletion ? "subtract" : "add"
                                 }
                             )
                             
@@ -484,7 +494,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                             commandManagerRef.current.clearRedoStack();
 
                             paintPoints.current = [];
-                            setPainting(false);
+                            interactionStateRef.current.mode = "inactive";
                             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.width);
                         }
                         else
@@ -501,7 +511,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 if(guidePoint)
                 {
                     //Stamp Deletion
-                    if (deleteModeRef.current)
+                    if (interactionStateRef.current.deletion)
                     {
                         //Checks all stamps to find a match
                         for (let i = mapStateRef.current.stamps.length - 1; i >= 0; i--)
@@ -554,7 +564,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     /**
     * Overlay mouse movement listener
     */
-    const onCanvasMouseMove = (event) => {
+    const onPointerMove = (event) => {
 
         //Renders a guide dot to show user where their brush will snap to, drawing or not.
         const rect = overlayCanvasRef.current.getBoundingClientRect();
@@ -564,23 +574,40 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         const guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistance.current);
 
         //Draws active guide dot if not panning, clears old ones otherwise.
-        if (paintModeRef.current !== "pan")
+        if (interactionStateRef.current.mode !== "panning")
         {
-            drawHoverGuide(overlayContext, guidePoint, deleteModeRef.current);
+            drawHoverGuide(overlayContext, guidePoint, interactionStateRef.current.deletion);
         }
         else
         {
             overlayContext.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
+
+            if (interactionStateRef.current.grabbing)
+            {
+                //Calculates length of pan
+                const panDistanceX = pointer.screen.x - panningStartScreenX.current;
+                const panDistanceY = pointer.screen.y - panningStartScreenY.current;
+
+                //Documents current pan coords
+                viewportStateRef.current.cameraX = panningStartCameraX.current + panDistanceX;
+                viewportStateRef.current.cameraY = panningStartCameraY.current + panDistanceY;
+
+                //Takes the current pan coords and forces them to reenter the map if they had gotten out of bounds
+                clampCamera(viewportStateRef.current, viewportRef.current.clientWidth, viewportRef.current.clientHeight, gridCanvasRef.current.width, gridCanvasRef.current.height);
+
+                //Updates visuals
+                applyViewportTransform(viewportStateRef.current, canvasStageRef.current);
+            }
         }
 
         overlayContext.current.save();
 
-        switch (paintModeRef.current)
+        switch (interactionStateRef.current.tool)
         {
             case "line":
 
                 //Ignore movements unless painting
-                if (!paintingRef.current)
+                if (interactionStateRef.current.mode !== "painting")
                 {
                     return;
                 }
@@ -599,7 +626,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             case "square":
 
                 //Ignore movements unless painting
-                if (!paintingRef.current)
+                if (interactionStateRef.current.mode !== "painting")
                 {
                     return;
                 }
@@ -611,11 +638,11 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 //Changes preview line color based on if it has a valid placement
                 if(!guidePoint)
                 {
-                    deleteModeRef.current ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
+                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
                 }
                 else
                 {
-                    deleteModeRef.current ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
+                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
                 }
 
                 overlayContext.current.stroke();
@@ -624,7 +651,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             case "circle":
 
                 //Ignore movements unless painting
-                if (!paintingRef.current)
+                if (interactionStateRef.current.mode !== "painting")
                 {
                     return;
                 }
@@ -636,11 +663,11 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 //Changes preview line color based on if it has a valid placement
                 if(!guidePoint)
                 {
-                    deleteModeRef.current ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
+                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
                 }
                 else
                 {
-                    deleteModeRef.current ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
+                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
                 }
 
                 overlayContext.current.stroke();
@@ -649,7 +676,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             case "polygon":
                 
                 //Ignore movements unless painting
-                if (!paintingRef.current)
+                if (interactionStateRef.current.mode !== "painting")
                 {
                     return;
                 }
@@ -659,11 +686,11 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 //Changes preview line color based on if it has a valid placement
                 if(!guidePoint)
                 {
-                    deleteModeRef.current ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
+                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "rgba(255, 0, 0, 0.5)" : overlayContext.current.strokeStyle = "rgba(65, 65, 65, 0.5)";
                 }
                 else
                 {
-                    deleteModeRef.current ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
+                    interactionStateRef.current.deletion ? overlayContext.current.strokeStyle = "red" : overlayContext.current.strokeStyle = brushColor.current;
                 }
 
                 overlayContext.current.beginPath();
@@ -680,7 +707,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
             case "stamp":
 
-                if (guidePoint && !deleteModeRef.current)
+                if (guidePoint && !interactionStateRef.current.deletion && interactionStateRef.current.mode === "inactive")
                 {
 
                     overlayContext.current.drawImage(stampImage.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
@@ -695,7 +722,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 }
                 
                 break;
-            
+
             default:
                 return;
         }
@@ -703,88 +730,27 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         overlayContext.current.restore();
     }
 
-    //END CANVAS LISTENERS
-
-    /********************************************************************************
-     * Viewport Listeners
-     ********************************************************************************/
-
-    /**
-     * Viewport MouseDown Listener
-     */
-    const onViewportMouseDown = (event) =>
-    {
-        //Abort if not panning
-        if (paintModeRef.current !== "pan")
-        {
-            return;
-        }
-
-        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
-
-        isPanningRef.current = true;
-
-        panningStartScreenX.current = pointer.screen.x;
-        panningStartScreenY.current = pointer.screen.y;
-
-        panningStartCameraX.current = viewportStateRef.current.cameraX;
-        panningStartCameraY.current = viewportStateRef.current.cameraY;
-
-        viewportRef.current.style.cursor = "grabbing";
-
-        //Prevents text selection and dragging quirks
-        event.preventDefault();
-    }
-
-    /**
-     * Viewport MouseMove Listener
-     */
-    const onViewportMouseMove = (event) =>
-    {
-        //Abort if not panning
-        if (!isPanningRef.current)
-        {
-            return;
-        }
-
-        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
-
-        //Calculates length of pan
-        const panDistanceX = pointer.screen.x - panningStartScreenX.current;
-        const panDistanceY = pointer.screen.y - panningStartScreenY.current;
-
-        //Documents current pan coords
-        viewportStateRef.current.cameraX = panningStartCameraX.current + panDistanceX;
-        viewportStateRef.current.cameraY = panningStartCameraY.current + panDistanceY;
-
-        //Takes the current pan coords and forces them to reenter the map if they had gotten out of bounds
-        clampCamera(viewportStateRef.current, viewportRef.current.clientWidth, viewportRef.current.clientHeight, gridCanvasRef.current.width, gridCanvasRef.current.height);
-
-        //Updates visuals
-        applyViewportTransform(viewportStateRef.current, canvasStageRef.current);
-
-    }
-
     /**
      * Viewport MouseUp Listener
      */
-    const onViewportMouseUp = (event) =>
+    const onPointerUp = (event) =>
     {
-        if (paintModeRef.current !== "pan")
+        if (interactionStateRef.current.mode !== "panning" || !interactionStateRef.current.grabbing)
         {
             return;
         }
 
+        interactionStateRef.current.grabbing = false;
+
         //Exits middle mouse pan mode and returns to previous brush
-        if (event.button === 1 && prePanModeRef.current !== "pan")
+        if (event.button === 1 && interactionStateRef.current.middlePan)
         {
-            paintModeRef.current = prePanModeRef.current;
-            isPanningRef.current = false;
+            interactionStateRef.current.middlePan = false;
+            interactionStateRef.current.mode = "inactive";
             viewportRef.current.style.cursor = "default";
             return;
         }
 
-        isPanningRef.current = false;
         viewportRef.current.style.cursor = "grab";
 
     }
@@ -792,9 +758,9 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     /**
      * Viewport MouseLeave Listener
      */
-    const onViewportMouseLeave = (event) =>
+    const onPointerLeave = (event) =>
     {
-        if (paintModeRef.current !== "pan")
+        if (interactionStateRef.current.mode !== "panning")
         {
             return;
         }
@@ -814,7 +780,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
     /**
      * Viewport MouseWheel Listener
      */
-    const onViewportWheel = (event) => {
+    const onPointerWheel = (event) => {
 
         event.preventDefault();
 
@@ -852,7 +818,9 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         applyViewportTransform(viewportStateRef.current, canvasStageRef.current);
     };
 
-    //END VIEWPORT LISTENERS
+    /********************************************************************************
+     * Drawing Helpers
+     ********************************************************************************/
 
     /**
      * Draws the guide dots along with the grid
@@ -1059,7 +1027,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
      * Tempory logging helper
      */
     const logger = () => {
-        console.log(paintModeRef.current)
+        console.log(interactionStateRef.current)
         console.log(mapStateRef.current);
         console.log(viewportStateRef.current)
     }
