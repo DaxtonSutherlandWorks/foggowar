@@ -61,9 +61,9 @@ export function clampCamera(viewportState, viewportWidth, viewportHeight, worldW
 /**
  * Returns the pointer's position in world space and screen space
  */
-export function getPointerData(event, overlayCanvas, viewportState)
+export function getPointerData(event, viewport, viewportState)
 {
-    const rect = overlayCanvas.getBoundingClientRect();
+    const rect = viewport.getBoundingClientRect();
 
     const screen = {x: event.clientX - rect.left, y: event.clientY - rect.top};
 

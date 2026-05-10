@@ -1,4 +1,5 @@
-//TODO: Commit notes: Merged canvas listerners, merged many brush/pan trackers into one state ref.
+//TODO: Phase 4, make a bunch of helper functions for listeners
+//TODO: Phase 5, shift to using pointer capture from mouse events
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
@@ -259,7 +260,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
             interactionStateRef.current.mode = "panning";
         }
 
-        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
+        const pointer = getPointerData(event, viewportRef.current, viewportStateRef.current);
 
         //Break out to handle panning
         if (interactionStateRef.current.mode === "panning")
@@ -569,7 +570,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         //Renders a guide dot to show user where their brush will snap to, drawing or not.
         const rect = overlayCanvasRef.current.getBoundingClientRect();
         
-        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
+        const pointer = getPointerData(event, viewportRef.current, viewportStateRef.current);
 
         const guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistance.current);
 
@@ -802,7 +803,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
             )
         );
 
-        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
+        const pointer = getPointerData(event, viewportRef.current, viewportStateRef.current);
 
         //Applying transformations
 
