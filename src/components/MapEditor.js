@@ -1,5 +1,3 @@
-//TODO: comment, upload, oraganize.
-
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
@@ -15,7 +13,7 @@ import { DeleteStampCommand } from "../classes/DeleteStampCommand";
 import { DeleteLineCommand } from "../classes/DeleteLineCommand";
 import { createInitialMapState } from "../helpers/MapState";
 import { createShape } from "../schemas/shapeSchema";
-import { applyViewportTransform, clampCamera, createInitialViewportState, screenToWorld } from "../helpers/ViewportUtils";
+import { applyViewportTransform, clampCamera, createInitialViewportState, getPointerData, screenToWorld } from "../helpers/ViewportUtils";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -53,8 +51,8 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
     //Viewport Refs
     const isPanningRef = useRef(false);
-    const panningStartX = useRef(0);
-    const panningStartY = useRef(0);
+    const panningStartScreenX = useRef(0);
+    const panningStartScreenY = useRef(0);
     const panningStartCameraX = useRef(0);
     const panningStartCameraY = useRef(0);
     const viewportRef = useRef(null);
@@ -269,9 +267,11 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             prePanModeRef.current = paintModeRef.current;
             paintModeRef.current = "pan";
         }
+
+        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
             
         //Checks whether the cursor is in range of a guide point
-        let guidePoint = nearestGuidePoint(event.offsetX, event.offsetY, tileSize, snapDistance.current)
+        let guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistance.current)
 
         //Click functions by mode
         switch (paintModeRef.current)
@@ -559,13 +559,9 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         //Renders a guide dot to show user where their brush will snap to, drawing or not.
         const rect = overlayCanvasRef.current.getBoundingClientRect();
         
-        //Translates click coordinates to world space to account for canvas resizing
-        const coords = screenToWorld(event.clientX - rect.left, event.clientY - rect.top, viewportStateRef.current);
+        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
 
-        const x = coords.x;
-        const y = coords.y;
-
-        const guidePoint = nearestGuidePoint(x, y, tileSize, snapDistance.current);
+        const guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistance.current);
 
         //Draws active guide dot if not panning, clears old ones otherwise.
         if (paintModeRef.current !== "pan")
@@ -591,7 +587,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
                 overlayContext.current.beginPath();
                 overlayContext.current.moveTo(startCoords.current[0], startCoords.current[1]);
-                overlayContext.current.lineTo(event.offsetX, event.offsetY);
+                overlayContext.current.lineTo(pointer.world.x, pointer.world.y);
                 overlayContext.current.lineWidth = brushSize.current;
 
                 //Changes preview line color based on if it has a valid placement
@@ -610,7 +606,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
 
                 overlayContext.current.beginPath();
                 overlayContext.current.lineWidth = brushSize.current;
-                overlayContext.current.rect(startCoords.current[0], startCoords.current[1], event.offsetX - startCoords.current[0], event.offsetY - startCoords.current[1]);
+                overlayContext.current.rect(startCoords.current[0], startCoords.current[1], pointer.world.x - startCoords.current[0], pointer.world.y - startCoords.current[1]);
 
                 //Changes preview line color based on if it has a valid placement
                 if(!guidePoint)
@@ -634,7 +630,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                 }
 
                 overlayContext.current.beginPath();
-                overlayContext.current.arc(startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((event.offsetX - startCoords.current[0]), (event.offsetY - startCoords.current[1]))), 0, 2 * Math.PI);
+                overlayContext.current.arc(startCoords.current[0], startCoords.current[1], Math.abs(Math.hypot((pointer.world.x - startCoords.current[0]), (pointer.world.y - startCoords.current[1]))), 0, 2 * Math.PI);
                 overlayContext.current.lineWidth = brushSize.current;
 
                 //Changes preview line color based on if it has a valid placement
@@ -678,7 +674,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
                     overlayContext.current.lineTo(paintPoints.current[i].x, paintPoints.current[i].y);
                 }
 
-                overlayContext.current.lineTo(event.offsetX, event.offsetY);
+                overlayContext.current.lineTo(pointer.world.x, pointer.world.y);
                 overlayContext.current.stroke();
                 break;
 
@@ -707,6 +703,8 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         overlayContext.current.restore();
     }
 
+    //END CANVAS LISTENERS
+
     /********************************************************************************
      * Viewport Listeners
      ********************************************************************************/
@@ -722,10 +720,12 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             return;
         }
 
+        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
+
         isPanningRef.current = true;
 
-        panningStartX.current = event.clientX;
-        panningStartY.current = event.clientY;
+        panningStartScreenX.current = pointer.screen.x;
+        panningStartScreenY.current = pointer.screen.y;
 
         panningStartCameraX.current = viewportStateRef.current.cameraX;
         panningStartCameraY.current = viewportStateRef.current.cameraY;
@@ -747,9 +747,11 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             return;
         }
 
+        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
+
         //Calculates length of pan
-        const panDistanceX = event.clientX - panningStartX.current;
-        const panDistanceY = event.clientY - panningStartY.current;
+        const panDistanceX = pointer.screen.x - panningStartScreenX.current;
+        const panDistanceY = pointer.screen.y - panningStartScreenY.current;
 
         //Documents current pan coords
         viewportStateRef.current.cameraX = panningStartCameraX.current + panDistanceX;
@@ -834,19 +836,7 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
             )
         );
 
-        //Panning math
-
-        const rect = viewportRef.current.getBoundingClientRect();
-
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-
-        //Translate screen coords to world coords
-        const worldPos = screenToWorld(
-            mouseX,
-            mouseY,
-            viewportStateRef.current
-        );
+        const pointer = getPointerData(event, overlayCanvasRef.current, viewportStateRef.current);
 
         //Applying transformations
 
@@ -854,13 +844,15 @@ const MapEditor = ({dimensions, paintMode, painting, setPainting, deleteMode, cu
         viewportStateRef.current.zoom = newZoom;
 
         //Panning
-        viewportStateRef.current.cameraX = mouseX - (worldPos.x * newZoom);
-        viewportStateRef.current.cameraY = mouseY - (worldPos.y * newZoom);
+        viewportStateRef.current.cameraX = pointer.screen.x - (pointer.world.x * newZoom);
+        viewportStateRef.current.cameraY = pointer.screen.y - (pointer.world.y * newZoom);
 
         clampCamera(viewportStateRef.current, viewportRef.current.clientWidth, viewportRef.current.clientHeight, gridCanvasRef.current.width, gridCanvasRef.current.height);
 
         applyViewportTransform(viewportStateRef.current, canvasStageRef.current);
     };
+
+    //END VIEWPORT LISTENERS
 
     /**
      * Draws the guide dots along with the grid
