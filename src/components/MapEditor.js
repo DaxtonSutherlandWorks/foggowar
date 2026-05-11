@@ -1,5 +1,4 @@
 //TODO: Phase 4, make a bunch of helper functions for listeners
-//  -Panning Helpers
 //  -Better utilize the editor context ref to cut down on helper params
 //TODO: Phase 5, shift to using pointer capture from mouse events
 import { useEffect, useRef } from "react";
@@ -23,6 +22,7 @@ import { rectanglePointerDown, rectanglePointerMove } from "../helpers/RectUtils
 import { circlePointerDown, circlePointerMove } from "../helpers/CircleUtils";
 import { polygonPointerDown, polygonPointerMove } from "../helpers/PolygonUtils";
 import { stampPointerDown, stampPointerMove } from "../helpers/StampUtils";
+import { panPointerDown, panPointerLeave, panPointerMove, panPointerUp, zoomPointerWheel } from "../helpers/PanZoomUtils";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -56,7 +56,6 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
     const snapDistanceRef = useRef(12);
 
     //Viewport Refs
-    const isPanningRef = useRef(false);
     const panningStartScreenXRef = useRef(0);
     const panningStartScreenYRef = useRef(0);
     const panningStartCameraXRef = useRef(0);
@@ -272,19 +271,11 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         //Break out to handle panning
         if (interactionStateRef.current.mode === "panning")
         {
-            panningStartScreenXRef.current = pointer.screen.x;
-            panningStartScreenYRef.current = pointer.screen.y;
-
-            panningStartCameraXRef.current = viewportStateRef.current.cameraX;
-            panningStartCameraYRef.current = viewportStateRef.current.cameraY;
-
-            interactionStateRef.current.grabbing = true;
-
-            viewportRef.current.style.cursor = "grabbing";
-
+            panPointerDown(panningStartScreenXRef, panningStartScreenYRef, panningStartCameraXRef, panningStartCameraYRef, interactionStateRef, viewportStateRef, viewportRef, pointer);
+            
             //Prevents text selection and dragging quirks
             event.preventDefault();
-
+            
             return;
         }
             
@@ -340,19 +331,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
 
             if (interactionStateRef.current.grabbing)
             {
-                //Calculates length of pan
-                const panDistanceX = pointer.screen.x - panningStartScreenXRef.current;
-                const panDistanceY = pointer.screen.y - panningStartScreenYRef.current;
-
-                //Documents current pan coords
-                viewportStateRef.current.cameraX = panningStartCameraXRef.current + panDistanceX;
-                viewportStateRef.current.cameraY = panningStartCameraYRef.current + panDistanceY;
-
-                //Takes the current pan coords and forces them to reenter the map if they had gotten out of bounds
-                clampCamera(viewportStateRef.current, viewportRef.current.clientWidth, viewportRef.current.clientHeight, gridCanvasRef.current.width, gridCanvasRef.current.height);
-
-                //Updates visuals
-                applyViewportTransform(viewportStateRef.current, canvasStageRef.current);
+                panPointerMove(interactionStateRef, pointer, panningStartScreenXRef, panningStartScreenYRef, viewportStateRef, panningStartCameraXRef, panningStartCameraYRef, viewportRef, gridCanvasRef, canvasStageRef);
             }
         }
 
@@ -392,23 +371,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
      */
     const onPointerUp = (event) =>
     {
-        if (interactionStateRef.current.mode !== "panning" || !interactionStateRef.current.grabbing)
-        {
-            return;
-        }
-
-        interactionStateRef.current.grabbing = false;
-
-        //Exits middle mouse pan mode and returns to previous brush
-        if (event.button === 1 && interactionStateRef.current.middlePan)
-        {
-            interactionStateRef.current.middlePan = false;
-            interactionStateRef.current.mode = "inactive";
-            viewportRef.current.style.cursor = "default";
-            return;
-        }
-
-        viewportRef.current.style.cursor = "grab";
+        panPointerUp(interactionStateRef, event, viewportRef);
 
     }
 
@@ -417,13 +380,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
      */
     const onPointerLeave = (event) =>
     {
-        if (interactionStateRef.current.mode !== "panning")
-        {
-            return;
-        }
-
-        isPanningRef.current = false;
-        viewportRef.current.style.cursor = "grab";
+        panPointerLeave(interactionStateRef, viewportRef);
     }
 
     /**
@@ -441,38 +398,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
 
         event.preventDefault();
 
-        //Zoom math
-
-        //Translate mouse wheel delta (scroll ammount with direction shown by sign) into a +/-10% factor to use for scaling
-        const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
-
-        const oldZoom = viewportStateRef.current.zoom;
-
-        let newZoom = oldZoom * zoomFactor;
-
-        //Locks zoom to set max/min
-        newZoom = Math.max(
-            viewportStateRef.current.minZoom,
-            Math.min(
-                viewportStateRef.current.maxZoom,
-                newZoom
-            )
-        );
-
-        const pointer = getPointerData(event, viewportRef.current, viewportStateRef.current);
-
-        //Applying transformations
-
-        //Zoom
-        viewportStateRef.current.zoom = newZoom;
-
-        //Panning
-        viewportStateRef.current.cameraX = pointer.screen.x - (pointer.world.x * newZoom);
-        viewportStateRef.current.cameraY = pointer.screen.y - (pointer.world.y * newZoom);
-
-        clampCamera(viewportStateRef.current, viewportRef.current.clientWidth, viewportRef.current.clientHeight, gridCanvasRef.current.width, gridCanvasRef.current.height);
-
-        applyViewportTransform(viewportStateRef.current, canvasStageRef.current);
+        zoomPointerWheel(event, viewportStateRef, viewportRef, gridCanvasRef, canvasStageRef);
     };
 
     /********************************************************************************
