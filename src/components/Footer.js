@@ -16,6 +16,38 @@ const Footer = () => {
             </div>
             <div className="update-card">
                 <div className="update-card-inner">
+                    <h1>V0.1.1 - 5/11/26</h1>
+                    <p>
+                        The second public version of Foggowar has released, now with even more functionality! Much like my last update, I am bringing a blend of functionality and future scalability with this one. The biggest architectural theme of this update was the transition from a costly image
+                        parsing system for processing the map and adding user input that was fine for a little proof of concept front end, to a more robust state based solution that allows for bigger maps, cleaner data exporting, and future plans. In short, this little page has graduated from a neat 
+                        little demo to something that can really be built on beyond this editor.
+                    </p>
+                    <p>
+                        Have a look at what's been added!
+                    </p>
+                    <h4>V0.1.0 Features:</h4>
+                    <ul>
+                        <li>Drawing no longer rerenders the whole canvas! It never really should have, but the focus of V0.1.0 was to learn about HTML canvases and how to use them then build from there.</li>
+                        <ul>
+                            <li>Rerenders are now limited to altered portions of the map for drawing.</li>
+                            <li>Drawing no longer becomes exponentially more costly with every stroke.</li>
+                            <li>The default map size is now 100x100 tiles, and can support more.</li>
+                        </ul>
+                        <li>The canvas now has states and data assosiated with it. This powers:</li>
+                        <ul>
+                            <li>Saving maps as a custom .fog file. This is just a JSON file but I have always wanted my own file extension.</li>
+                            <li>Importing maps from .fog files.</li>
+                            <li>Better performance.</li>
+                            <li>Future uses for maps beyond just drawing are now possible... But still secret!</li>
+                        </ul>
+                        <li>Panning and zooming have been added to the editor to make use of these larger map sizes.</li>
+                        <li>Cleaner source code for interested parties to read.</li>
+                    </ul>
+                    <p>As always, if you're interested in other things I've made or just getting to know me, please visit one of my personal links above.</p>
+                </div>
+            </div>
+            <div className="update-card">
+                <div className="update-card-inner">
                     <h1>V0.1.0 - 2/8/26</h1>
                     <p>
                         Welcome to the very first version of Foggowar! Foggowar is a personal project I am putting together that is all about designing, sharing, and using custom table top roleplaying game maps
