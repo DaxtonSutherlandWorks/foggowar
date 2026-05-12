@@ -1,4 +1,3 @@
-//TODO: Phase 5, shift to using pointer capture from mouse events
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
@@ -156,17 +155,17 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
 
        //Listeners are made as class methods so they can be removed before being applied
        //This prevents the confusing and breaking behavior of listeners getting duplicated on a rerender.
-       overlayCanvasRef.current.removeEventListener('mousedown', onPointerDown);
-       overlayCanvasRef.current.addEventListener('mousedown', onPointerDown);
+       overlayCanvasRef.current.removeEventListener('pointerdown', onPointerDown);
+       overlayCanvasRef.current.addEventListener('pointerdown', onPointerDown);
 
-       overlayCanvasRef.current.removeEventListener('mousemove', onPointerMove);
-       overlayCanvasRef.current.addEventListener('mousemove', onPointerMove);
+       overlayCanvasRef.current.removeEventListener('pointermove', onPointerMove);
+       overlayCanvasRef.current.addEventListener('pointermove', onPointerMove);
 
-       viewportRef.current.removeEventListener('mouseup', onPointerUp);
-       viewportRef.current.addEventListener('mouseup', onPointerUp);
+       overlayCanvasRef.current.removeEventListener('pointerup', onPointerUp);
+       overlayCanvasRef.current.addEventListener('pointerup', onPointerUp);
 
-       viewportRef.current.removeEventListener('mouseleave', onPointerLeave);
-       viewportRef.current.addEventListener('mouseleave', onPointerLeave);
+       overlayCanvasRef.current.removeEventListener('pointercancel', onPointerLeave);
+       overlayCanvasRef.current.addEventListener('pointercancel', onPointerLeave);
 
        viewportRef.current.removeEventListener('contextmenu', blockContextMenu);
        viewportRef.current.addEventListener('contextmenu', blockContextMenu);
@@ -268,6 +267,8 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         }
         else if (event.button === 1 && interactionStateRef.current.mode !== "panning")
         {
+            overlayCanvasRef.current.setPointerCapture(event.pointerId);
+
             interactionStateRef.current.middlePan = true;
             interactionStateRef.current.mode = "panning";
         }
@@ -377,8 +378,8 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
      */
     const onPointerUp = (event) =>
     {
+        overlayCanvasRef.current.releasePointerCapture(event.pointerId);
         panPointerUp(editorContextRef, event);
-
     }
 
     /**
