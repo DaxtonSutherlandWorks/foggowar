@@ -267,8 +267,6 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         }
         else if (event.button === 1 && interactionStateRef.current.mode !== "panning")
         {
-            overlayCanvasRef.current.setPointerCapture(event.pointerId);
-
             interactionStateRef.current.middlePan = true;
             interactionStateRef.current.mode = "panning";
         }
@@ -278,6 +276,8 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         //Break out to handle panning
         if (interactionStateRef.current.mode === "panning")
         {
+            overlayCanvasRef.current.setPointerCapture(event.pointerId);
+            
             panPointerDown(editorContextRef, pointer);
             
             //Prevents text selection and dragging quirks
@@ -378,8 +378,9 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
      */
     const onPointerUp = (event) =>
     {
-        overlayCanvasRef.current.releasePointerCapture(event.pointerId);
+        console.log("HUH?")
         panPointerUp(editorContextRef, event);
+        overlayCanvasRef.current.releasePointerCapture(event.pointerId);
     }
 
     /**
@@ -616,11 +617,11 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
     /**
      * Temporary logging helper
      */
-    const logger = () => {
+    /*const logger = () => {
         console.log(interactionStateRef.current)
         console.log(mapStateRef.current);
         console.log(viewportStateRef.current)
-    }
+    }*/
 
     /***********************************************************************
      * 
@@ -654,9 +655,11 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
                     </div>
                 </div>
             </div>
-            <div>
-                <button onClick={logger}>test</button>
-            </div>
+            {
+                /*<div>
+                    <button onClick={logger}>test</button>
+                </div>*/
+            }
         </div>
     );
 }
