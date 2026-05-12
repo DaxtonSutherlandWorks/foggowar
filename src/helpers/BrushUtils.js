@@ -238,10 +238,10 @@ export const pointToSegmentDistance = (px, py, x1, y1, x2, y2) =>
  * Scans the solid canvas image and returns all border edge pixels.
  * Border pixels are solid pixels that touch at least one clear neighbor.
  */
-export const recomputeBorders = (editorContext, image, box) => 
+export const recomputeBorders = (editorContextRef, image, box) => 
 {
     //Clears old borders
-    editorContext.borderContext.current.clearRect(box.x, box.y, box.width, box.height);
+    editorContextRef.borderContextRef.current.clearRect(box.x, box.y, box.width, box.height);
 
     const { data, width: w, height: h } = image;
     const edges = [];
@@ -376,10 +376,10 @@ export const clearRectangle = (solidContext, shape) =>
 /**
  * Updates the line canvas, drawing the newest line or all lines if needed.
  */
-export const updateLines = (editorContext, fullRedraw) =>
+export const updateLines = (editorContextRef, fullRedraw) =>
 {
-    const canvasLines = editorContext.mapStateRef.current.lines;
-    const lineContext = editorContext.lineContext.current;
+    const canvasLines = editorContextRef.mapStateRef.current.lines;
+    const lineContext = editorContextRef.lineContextRef.current;
 
     lineContext.save();
 
@@ -393,7 +393,7 @@ export const updateLines = (editorContext, fullRedraw) =>
 
     else
     {
-        rebuildLineCanvas(editorContext);
+        rebuildLineCanvas(editorContextRef);
     } 
 
     lineContext.restore();
@@ -405,7 +405,7 @@ export const updateLines = (editorContext, fullRedraw) =>
 export const updateStamps = (editorContext, fullRedraw) =>
 {
     const canvasStamps = editorContext.mapStateRef.current.stamps;
-    const stampContext = editorContext.stampContext.current;
+    const stampContext = editorContext.stampContextRef.current;
 
     if (!fullRedraw)
     {
@@ -428,8 +428,8 @@ export const updateStamps = (editorContext, fullRedraw) =>
 export const rebuildSolidCanvas = (editorContext) =>
 {
 
-    const solidContext = editorContext.solidContext.current;
-    const borderContext = editorContext.borderContext.current;
+    const solidContext = editorContext.solidContextRef.current;
+    const borderContext = editorContext.borderContextRef.current;
     const shapes = editorContext.mapStateRef.current.shapes;
     const canvasWidth = editorContext.solidCanvasRef.current.width;
     const canvasHeight = editorContext.solidCanvasRef.current.height;
@@ -473,8 +473,8 @@ export const drawShapeBorders = (editorContext, shape) =>
  */
 export const rebuildShapeArea = (editorContext, shape) =>
 {
-    const solidContext = editorContext.solidContext.current;
-    const borderContext = editorContext.borderContext.current;
+    const solidContext = editorContext.solidContextRef.current;
+    const borderContext = editorContext.borderContextRef.current;
     const box = createBoundingBox(shape);
 
     drawShape(editorContext, shape);
@@ -491,7 +491,7 @@ export const rebuildShapeArea = (editorContext, shape) =>
  */
 export const drawShape = (editorContext, shape) =>
 {
-    const solidContext = editorContext.solidContext.current;
+    const solidContext = editorContext.solidContextRef.current;
 
     switch (shape.type)
     {
@@ -517,7 +517,7 @@ export const drawShape = (editorContext, shape) =>
  */
 export const rebuildLineCanvas = (editorContext) =>
 {
-    const lineContext = editorContext.lineContext.current;
+    const lineContext = editorContext.lineContextRef.current;
     const lines = editorContext.mapStateRef.current.lines;
     const canvasWidth = editorContext.solidCanvasRef.current.width;
     const canvasHeight = editorContext.solidCanvasRef.current.height;
@@ -553,7 +553,7 @@ export const drawLines = (lines, lineContext) =>
  */
 export const rebuildStampCanvas = (editorContext) =>
 {
-    const stampContext = editorContext.stampContext.current;
+    const stampContext = editorContext.stampContextRef.current;
     const stamps = editorContext.mapStateRef.current.stamps;
     const canvasWidth = editorContext.solidCanvasRef.current.width;
     const canvasHeight = editorContext.solidCanvasRef.current.height;

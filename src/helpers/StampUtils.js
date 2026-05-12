@@ -5,8 +5,10 @@ import { isSquareCleared } from "./BrushUtils";
 /**
  * Executes stamp draw/deletion clicks
  */
-export function stampPointerDown(guidePoint, interactionStateRef, mapStateRef, commandManagerRef, solidContextRef, stampContextRef, currStamp, stampSize)
+export function stampPointerDown(editorContextRef, guidePoint, currStamp, stampSize)
 {
+    const { interactionStateRef, mapStateRef, commandManagerRef, solidContextRef, stampContextRef} = editorContextRef.current;
+    
     if(guidePoint)
     {
         //Stamp Deletion
@@ -55,8 +57,10 @@ export function stampPointerDown(guidePoint, interactionStateRef, mapStateRef, c
 /**
  * Handles stamp preview drawing
  */
-export function stampPointerMove(guidePoint, interactionStateRef, overlayContextRef, stampImageRef, stampSize, solidContextRef, stampContextRef)
+export function stampPointerMove(editorContextRef, guidePoint, stampImageRef, stampSize)
 {
+    const { interactionStateRef, overlayContextRef, solidContextRef, stampContextRef} = editorContextRef.current;
+
     if (guidePoint && !interactionStateRef.current.deletion && interactionStateRef.current.mode === "inactive")
     {
         overlayContextRef.current.drawImage(stampImageRef.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);

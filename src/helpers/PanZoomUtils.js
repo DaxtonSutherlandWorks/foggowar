@@ -3,8 +3,10 @@ import { applyViewportTransform, clampCamera, getPointerData } from "./ViewportU
 /**
  * Executes a panning click
  */
-export function panPointerDown(panningStartScreenXRef, panningStartScreenYRef, panningStartCameraXRef, panningStartCameraYRef, interactionStateRef, viewportStateRef, viewportRef, pointer)
+export function panPointerDown(editorContextRef, pointer)
 {
+    const { panningStartCameraXRef, panningStartCameraYRef, panningStartScreenXRef, panningStartScreenYRef, viewportRef, viewportStateRef, interactionStateRef} = editorContextRef.current;
+    
     panningStartScreenXRef.current = pointer.screen.x;
     panningStartScreenYRef.current = pointer.screen.y;
 
@@ -19,8 +21,10 @@ export function panPointerDown(panningStartScreenXRef, panningStartScreenYRef, p
 /**
  * Handles pointer movement for panning
  */
-export function panPointerMove(interactionStateRef, pointer, panningStartScreenXRef, panningStartScreenYRef, viewportStateRef, panningStartCameraXRef, panningStartCameraYRef, viewportRef, gridCanvasRef, canvasStageRef)
+export function panPointerMove(editorContextRef, pointer)
 {
+    const { interactionStateRef, panningStartScreenXRef, panningStartScreenYRef, viewportStateRef, panningStartCameraXRef, panningStartCameraYRef, viewportRef, gridCanvasRef, canvasStageRef } = editorContextRef.current;
+
     if(!interactionStateRef.current.grabbing)
     {
         return;
@@ -44,8 +48,10 @@ export function panPointerMove(interactionStateRef, pointer, panningStartScreenX
 /**
  * Handles pointerUp during panning
  */
-export function panPointerUp(interactionStateRef, event, viewportRef)
+export function panPointerUp(editorContextRef, event)
 {
+    const { interactionStateRef, viewportRef} = editorContextRef.current;
+
     //Aborts if not actively panning
     if (interactionStateRef.current.mode !== "panning" || !interactionStateRef.current.grabbing)
     {
@@ -69,8 +75,10 @@ export function panPointerUp(interactionStateRef, event, viewportRef)
 /**
  * Handles the pointer leaving the canvas during panning
  */
-export function panPointerLeave(interactionStateRef, viewportRef)
+export function panPointerLeave(editorContextRef)
 {
+    const { interactionStateRef, viewportRef} = editorContextRef.current;
+
     //Aborts if not actively panning
     if (interactionStateRef.current.mode !== "panning")
     {
@@ -84,8 +92,9 @@ export function panPointerLeave(interactionStateRef, viewportRef)
 /**
  * Handles pointer scrolling
  */
-export function zoomPointerWheel(event, viewportStateRef, viewportRef, gridCanvasRef, canvasStageRef)
+export function zoomPointerWheel(editorContextRef, event)
 {
+    const { viewportStateRef, viewportRef, canvasStageRef, gridCanvasRef} = editorContextRef.current;
     //Zoom math
 
     //Translate mouse wheel delta (scroll ammount with direction shown by sign) into a +/-10% factor to use for scaling

@@ -4,8 +4,10 @@ import { createShape } from "../schemas/shapeSchema";
 /**
  * Executes a polygon draw/delete click
  */
-export function polygonPointerDown(guidePoint, paintPointsRef, interactionStateRef, commandManagerRef, overlayContextRef, overlayCanvasRef)
+export function polygonPointerDown(editorContextRef, guidePoint)
 {
+    const { paintPointsRef, interactionStateRef, commandManagerRef, overlayContextRef, overlayCanvasRef} = editorContextRef.current;
+    
     //Checks for a guide point in range
     if (guidePoint)
     {
@@ -54,8 +56,10 @@ export function polygonPointerDown(guidePoint, paintPointsRef, interactionStateR
 /**
  * Handles polygon preview drawing
  */
-export function polygonPointerMove(interactionStateRef, overlayContextRef, brushSizeRef, guidePoint, paintPointsRef, brushColorRef, pointer)
+export function polygonPointerMove(editorContextRef, brushSizeRef, guidePoint, brushColorRef, pointer)
 {
+    const { interactionStateRef, overlayContextRef, paintPointsRef} = editorContextRef.current;
+
     //Ignore movements unless painting
     if (interactionStateRef.current.mode !== "painting")
     {

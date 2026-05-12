@@ -4,8 +4,10 @@ import { createShape } from "../schemas/shapeSchema";
 /**
  * Executes a rectangle drawing/deletion click
  */
-export function rectanglePointerDown(interactionStateRef, guidePoint, startCoordsRef, commandManagerRef, overlayContextRef, overlayCanvasRef)
+export function rectanglePointerDown(editorContextRef, guidePoint)
 {
+    const { interactionStateRef, startCoordsRef, commandManagerRef, overlayContextRef, overlayCanvasRef} = editorContextRef.current;
+
     //First click of stroke
     if (interactionStateRef.current.mode !== "painting")
     {
@@ -64,8 +66,10 @@ export function rectanglePointerDown(interactionStateRef, guidePoint, startCoord
 /**
  * Handles rectangle drawing previews
  */
-export function rectanglePointerMove(interactionStateRef, overlayContextRef, brushSizeRef, startCoordsRef, pointer, guidePoint, brushColorRef)
+export function rectanglePointerMove(editorContextRef, brushSizeRef, pointer, guidePoint, brushColorRef)
 {
+    const { interactionStateRef, overlayContextRef, startCoordsRef} = editorContextRef.current;
+
     //Ignore movements unless painting
     if (interactionStateRef.current.mode !== "painting")
     {

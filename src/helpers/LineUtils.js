@@ -5,8 +5,9 @@ import { findLineAtGuidePoint } from "./BrushUtils";
 /**
  * Executes a line click
  */
-export function linePointerDown(interactionStateRef, guidePoint, mapStateRef, commandManagerRef, startCoordsRef, overlayContextRef, overlayCanvasRef)
+export function linePointerDown(editorContextRef, guidePoint)
 {
+    const { interactionStateRef, mapStateRef, commandManagerRef, startCoordsRef, overlayCanvasRef, overlayContextRef} = editorContextRef.current;
     //Line deletion
     if (interactionStateRef.current.deletion)
     {
@@ -73,8 +74,9 @@ export function linePointerDown(interactionStateRef, guidePoint, mapStateRef, co
 /**
  * Handles line drawing previews
  */
-export function linePointerMove(interactionStateRef, overlayContextRef, startCoordsRef, pointer, brushSizeRef, brushColorRef, guidePoint)
+export function linePointerMove(editorContextRef, pointer, brushSizeRef, brushColorRef, guidePoint)
 {
+    const { interactionStateRef, overlayContextRef, startCoordsRef} = editorContextRef.current;
     //Ignore movements unless painting
     if (interactionStateRef.current.mode !== "painting")
     {

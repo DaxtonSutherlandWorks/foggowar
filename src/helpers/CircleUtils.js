@@ -4,8 +4,9 @@ import { createShape } from "../schemas/shapeSchema";
 /**
  * Executes circle draw/delete clicks
  */
-export function circlePointerDown(interactionStateRef, guidePoint, startCoordsRef, commandManagerRef, overlayContextRef, overlayCanvasRef)
+export function circlePointerDown(editorContextRef, guidePoint)
 {
+    const { interactionStateRef, startCoordsRef, commandManagerRef, overlayContextRef, overlayCanvasRef} = editorContextRef.current;
     //First click of stroke
     if (interactionStateRef.current.mode !== "painting")
     {
@@ -57,8 +58,10 @@ export function circlePointerDown(interactionStateRef, guidePoint, startCoordsRe
 /**
  * Handles preview drawing for circles
  */
-export function circlePointerMove(interactionStateRef, overlayContextRef, startCoordsRef, pointer, brushSizeRef, guidePoint, brushColorRef)
+export function circlePointerMove(editorContextRef, pointer, brushSizeRef, guidePoint, brushColorRef)
 {
+    const {interactionStateRef, overlayContextRef, startCoordsRef } = editorContextRef.current;
+
     //Ignore movements unless painting
     if (interactionStateRef.current.mode !== "painting")
     {

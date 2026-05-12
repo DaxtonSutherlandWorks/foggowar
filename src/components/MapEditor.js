@@ -1,22 +1,14 @@
-//TODO: Phase 4, make a bunch of helper functions for listeners
-//  -Better utilize the editor context ref to cut down on helper params
 //TODO: Phase 5, shift to using pointer capture from mouse events
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
-import { nearestGuidePoint, isSquareCleared, findLineAtGuidePoint, normalizeRectangleCoords, rebuildSolidCanvas, rebuildLineCanvas, rebuildStampCanvas } from "../helpers/BrushUtils";
-import { DrawLineCommand } from "../classes/DrawLineCommand";
-import { DrawStampCommand } from "../classes/DrawStampCommand";
-import { ClearShapeCommand } from "../classes/ClearShapeCommand";
+import { nearestGuidePoint, rebuildSolidCanvas, rebuildLineCanvas, rebuildStampCanvas } from "../helpers/BrushUtils";
 import UndoIcon from "../img/undoIcon.svg";
 import RedoIcon from "../img/redoIcon.svg";
 import SaveIcon from "../img/saveIcon.svg";
 import ImportIcon from "../img/importIcon.svg";
-import { DeleteStampCommand } from "../classes/DeleteStampCommand";
-import { DeleteLineCommand } from "../classes/DeleteLineCommand";
 import { createInitialMapState } from "../helpers/MapState";
-import { createShape } from "../schemas/shapeSchema";
-import { applyViewportTransform, clampCamera, createInitialViewportState, getPointerData, screenToWorld } from "../helpers/ViewportUtils";
+import { createInitialViewportState, getPointerData } from "../helpers/ViewportUtils";
 import { linePointerDown, linePointerMove } from "../helpers/LineUtils";
 import { rectanglePointerDown, rectanglePointerMove } from "../helpers/RectUtils";
 import { circlePointerDown, circlePointerMove } from "../helpers/CircleUtils";
@@ -63,7 +55,6 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
     const viewportRef = useRef(null);
     const canvasStageRef = useRef(null);
     const viewportStateRef = useRef(createInitialViewportState());
-    const prePanModeRef = useRef(null);
 
     //Object refs
     const editorContextRef = useRef(null);
@@ -84,14 +75,29 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
             borderCanvasRef,
             lineCanvasRef,
             stampCanvasRef,
+            overlayCanvasRef,
 
-            solidContext: solidContextRef,
-            gridContext: gridContextRef,
-            borderContext: borderContextRef,
-            lineContext: lineContextRef,
-            stampContext: stampContextRef,
+            solidContextRef,
+            gridContextRef,
+            borderContextRef,
+            lineContextRef,
+            stampContextRef,
+            overlayContextRef,
 
-            mapStateRef
+            mapStateRef,
+            interactionStateRef,
+            viewportStateRef,
+            startCoordsRef,
+            paintPointsRef,
+            panningStartScreenXRef,
+            panningStartScreenYRef,
+            panningStartCameraXRef,
+            panningStartCameraYRef,
+
+            viewportRef,
+            canvasStageRef,
+
+            commandManagerRef
         }
 
         commandManagerRef.current = new CommandManager(editorContextRef.current);
@@ -271,7 +277,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         //Break out to handle panning
         if (interactionStateRef.current.mode === "panning")
         {
-            panPointerDown(panningStartScreenXRef, panningStartScreenYRef, panningStartCameraXRef, panningStartCameraYRef, interactionStateRef, viewportStateRef, viewportRef, pointer);
+            panPointerDown(editorContextRef, pointer);
             
             //Prevents text selection and dragging quirks
             event.preventDefault();
@@ -286,23 +292,23 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         switch (interactionStateRef.current.tool)
         {
             case "line":
-                linePointerDown(interactionStateRef, guidePoint, mapStateRef, commandManagerRef, startCoordsRef, overlayContextRef, overlayCanvasRef)
+                linePointerDown(editorContextRef, guidePoint);
                 break;
 
             case "square":
-                rectanglePointerDown(interactionStateRef, guidePoint, startCoordsRef, commandManagerRef, overlayContextRef, overlayCanvasRef);
+                rectanglePointerDown(editorContextRef, guidePoint);
                 break;
 
             case "circle":
-                circlePointerDown(interactionStateRef, guidePoint, startCoordsRef, commandManagerRef, overlayContextRef, overlayCanvasRef);
+                circlePointerDown(editorContextRef, guidePoint);
                 break;
 
             case "polygon":
-                polygonPointerDown(guidePoint, paintPointsRef, interactionStateRef, commandManagerRef, overlayContextRef, overlayCanvasRef);
+                polygonPointerDown(editorContextRef, guidePoint);
                 break;
 
             case "stamp":
-                stampPointerDown(guidePoint, interactionStateRef, mapStateRef, commandManagerRef, solidContextRef, stampContextRef, currStamp, stampSize);
+                stampPointerDown(editorContextRef, guidePoint, currStamp, stampSize);
                 break;
             
             default:
@@ -331,7 +337,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
 
             if (interactionStateRef.current.grabbing)
             {
-                panPointerMove(interactionStateRef, pointer, panningStartScreenXRef, panningStartScreenYRef, viewportStateRef, panningStartCameraXRef, panningStartCameraYRef, viewportRef, gridCanvasRef, canvasStageRef);
+                panPointerMove(editorContextRef, pointer);
             }
         }
 
@@ -340,23 +346,23 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         switch (interactionStateRef.current.tool)
         {
             case "line":
-                linePointerMove(interactionStateRef, overlayContextRef, startCoordsRef, pointer, brushSizeRef, brushColorRef, guidePoint);
+                linePointerMove(editorContextRef, pointer, brushSizeRef, brushColorRef, guidePoint);
                 break;
 
             case "square":
-                rectanglePointerMove(interactionStateRef, overlayContextRef, brushSizeRef, startCoordsRef, pointer, guidePoint, brushColorRef);
+                rectanglePointerMove(editorContextRef, brushSizeRef, pointer, guidePoint, brushColorRef);
                 break;
 
             case "circle":
-                circlePointerMove(interactionStateRef, overlayContextRef, startCoordsRef, pointer, brushSizeRef, guidePoint, brushColorRef);
+                circlePointerMove(editorContextRef, pointer, brushSizeRef, guidePoint, brushColorRef);
                 break;
 
             case "polygon":
-                polygonPointerMove(interactionStateRef, overlayContextRef, brushSizeRef, guidePoint, paintPointsRef, brushColorRef, pointer);
+                polygonPointerMove(editorContextRef, brushSizeRef, guidePoint, brushColorRef, pointer);
                 break;
 
             case "stamp":
-                stampPointerMove(guidePoint, interactionStateRef, overlayContextRef, stampImageRef, stampSize, solidContextRef, stampContextRef);
+                stampPointerMove(editorContextRef, guidePoint, stampImageRef, stampSize);
                 break;        
 
             default:
@@ -371,7 +377,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
      */
     const onPointerUp = (event) =>
     {
-        panPointerUp(interactionStateRef, event, viewportRef);
+        panPointerUp(editorContextRef, event);
 
     }
 
@@ -380,7 +386,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
      */
     const onPointerLeave = (event) =>
     {
-        panPointerLeave(interactionStateRef, viewportRef);
+        panPointerLeave(editorContextRef);
     }
 
     /**
@@ -398,7 +404,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
 
         event.preventDefault();
 
-        zoomPointerWheel(event, viewportStateRef, viewportRef, gridCanvasRef, canvasStageRef);
+        zoomPointerWheel(editorContextRef, event);
     };
 
     /********************************************************************************
