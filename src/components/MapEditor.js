@@ -6,6 +6,7 @@ import UndoIcon from "../img/undoIcon.svg";
 import RedoIcon from "../img/redoIcon.svg";
 import SaveIcon from "../img/saveIcon.svg";
 import ImportIcon from "../img/importIcon.svg";
+import pngExportIcon from "../img/pngExportIcon.svg";
 import { createInitialMapState } from "../helpers/MapState";
 import { createInitialViewportState, getPointerData } from "../helpers/ViewportUtils";
 import { linePointerDown, linePointerMove } from "../helpers/LineUtils";
@@ -173,6 +174,9 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
        viewportRef.current.removeEventListener('wheel', onPointerWheel);
        viewportRef.current.addEventListener('wheel', onPointerWheel, {passive: false});
 
+       //Sets up the solid canvas
+        gridContextRef.current.fillStyle = "#ffebcd";
+        gridContextRef.current.fillRect(0, 0, gridCanvasRef.current.width, gridCanvasRef.current.height);
         drawStaticGuides();
 
         //Loads in the initial stamp image
@@ -605,6 +609,61 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
     }
 
     /**
+     * Exports the entire map as a PNG
+     */
+    const exportMapAsPNG = () =>
+    {
+        const exportLayers = [
+            gridCanvasRef,
+            solidCanvasRef,
+            borderCanvasRef,
+            lineCanvasRef,
+            stampCanvasRef
+        ]
+
+        //Create an offscreen canvas to transpose all layers to.
+        const exportCanvas = document.createElement("canvas");
+        const exportCtx = exportCanvas.getContext("2d");
+
+        //Initializing width
+        exportCanvas.width = solidCanvasRef.current.width;
+        exportCanvas.height = solidCanvasRef.current.height;
+
+        //Transpose all layers in the coorect order
+        for (let layer of exportLayers)
+        {
+            exportCtx.drawImage(layer.current, 0, 0);
+        }
+
+        //Convert to PNG
+        exportCanvas.toBlob((blob) => {
+
+            //Safety check
+            if (!blob) {
+                console.error("PNG export failed.");
+                return;
+            }
+
+            //Create temporary object URL
+            const url = URL.createObjectURL(blob);
+
+            //Create download link
+            const link = document.createElement("a");
+
+            link.href = url;
+            link.download = "map.png";
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            //Clean up memory
+            URL.revokeObjectURL(url);
+
+        }, "image/png");
+    }
+
+    /**
      * Rebuilds the editor
      */
     const rebuildFromState = (state) =>
@@ -617,11 +676,11 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
     /**
      * Temporary logging helper
      */
-    /*const logger = () => {
+    const logger = () => {
         console.log(interactionStateRef.current)
         console.log(mapStateRef.current);
         console.log(viewportStateRef.current)
-    }*/
+    }
 
     /***********************************************************************
      * 
@@ -641,6 +700,7 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
                 ref={mapUploadRef}
                 style={{display:"none"}}
                 onChange={handleMapImport} />
+                <button onClick={exportMapAsPNG}><img src={pngExportIcon} alt="PNG button"></img></button>
             </div>
             <div id="viewport" className="map-viewport">
                 <div ref={canvasStageRef} className="canvas-stage">
@@ -655,11 +715,9 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
                     </div>
                 </div>
             </div>
-            {
-                /*<div>
-                    <button onClick={logger}>test</button>
-                </div>*/
-            }
+            <div>
+                <button onClick={logger}>test</button>
+            </div>
         </div>
     );
 }
