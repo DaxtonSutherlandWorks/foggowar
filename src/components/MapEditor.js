@@ -1,7 +1,9 @@
+//TODO: Bug when activeley drawing and middle dragging.
+
 import { useEffect, useRef } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
-import { nearestGuidePoint, rebuildSolidCanvas, rebuildLineCanvas, rebuildStampCanvas } from "../helpers/BrushUtils";
+import { nearestGuidePoint } from "../helpers/BrushUtils";
 import UndoIcon from "../img/undoIcon.svg";
 import RedoIcon from "../img/redoIcon.svg";
 import SaveIcon from "../img/saveIcon.svg";
@@ -15,6 +17,7 @@ import { circlePointerDown, circlePointerMove } from "../helpers/CircleUtils";
 import { polygonPointerDown, polygonPointerMove } from "../helpers/PolygonUtils";
 import { stampPointerDown, stampPointerMove } from "../helpers/StampUtils";
 import { panPointerDown, panPointerLeave, panPointerMove, panPointerUp, zoomPointerWheel } from "../helpers/PanZoomUtils";
+import { toolbarImport, toolbarPNGExport, toolbarRedo, toolbarSave, toolbarUndo } from "../helpers/ToolbarUtils";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -382,7 +385,6 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
      */
     const onPointerUp = (event) =>
     {
-        console.log("HUH?")
         panPointerUp(editorContextRef, event);
         overlayCanvasRef.current.releasePointerCapture(event.pointerId);
     }
@@ -513,166 +515,6 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         context.current.fill();
     }
 
-    /********************************************************************************
-     * Toolbar Helpers
-     ********************************************************************************/
-
-    /**
-     * Handles a call to undo
-     */
-    const handleUndo = (event) => 
-    {
-        commandManagerRef.current.undo();
-    }
-
-    /**
-     * Handles a call to redo
-     */
-    const handleRedo = (event) => 
-    {
-        commandManagerRef.current.redo();
-    }
-
-    /**
-     * Handles a call to save
-     */
-    const handleSave = (event) =>
-    {
-        //Data prep
-        const json = JSON.stringify(mapStateRef.current, null, 2);
-        const blob = new Blob([json], {type: "application/json"});
-
-        //Creating a tempory link that is automatically clicked
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "map.fog";
-
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        URL.revokeObjectURL(url);
-    }
-
-    /**
-     * Handles importing a map
-     */
-    const handleMapImport = (event) =>
-    {
-        const file = event.target.files[0];
-
-        if (!file)
-        {
-            return;
-        }
-
-        const reader = new FileReader();
-
-        reader.onload = (e) => 
-        {
-            try
-            {
-                const parsed = JSON.parse(e.target.result);
-
-                validateMapState(parsed);
-
-                mapStateRef.current = parsed;
-
-                rebuildFromState(parsed);
-            }
-            catch (err)
-            {
-                console.error("Invalid file", err);
-                alert("Failed to load map file");
-            }
-        };
-
-        reader.readAsText(file);
-    }
-
-    /**
-     * Checks for basic map traits
-     */
-    const validateMapState = (data) => 
-    {
-        if (!data.version)
-        {
-            throw new Error("Missing version");
-        }
-        
-        if (!data.shapes)
-        {
-            throw new Error("Invalid shapes");
-        }
-    }
-
-    /**
-     * Exports the entire map as a PNG
-     */
-    const exportMapAsPNG = () =>
-    {
-        const exportLayers = [
-            gridCanvasRef,
-            solidCanvasRef,
-            borderCanvasRef,
-            lineCanvasRef,
-            stampCanvasRef
-        ]
-
-        //Create an offscreen canvas to transpose all layers to.
-        const exportCanvas = document.createElement("canvas");
-        const exportCtx = exportCanvas.getContext("2d");
-
-        //Initializing width
-        exportCanvas.width = solidCanvasRef.current.width;
-        exportCanvas.height = solidCanvasRef.current.height;
-
-        //Transpose all layers in the coorect order
-        for (let layer of exportLayers)
-        {
-            exportCtx.drawImage(layer.current, 0, 0);
-        }
-
-        //Convert to PNG
-        exportCanvas.toBlob((blob) => {
-
-            //Safety check
-            if (!blob) {
-                console.error("PNG export failed.");
-                return;
-            }
-
-            //Create temporary object URL
-            const url = URL.createObjectURL(blob);
-
-            //Create download link
-            const link = document.createElement("a");
-
-            link.href = url;
-            link.download = "map.png";
-
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            //Clean up memory
-            URL.revokeObjectURL(url);
-
-        }, "image/png");
-    }
-
-    /**
-     * Rebuilds the editor
-     */
-    const rebuildFromState = (state) =>
-    {
-        rebuildSolidCanvas(editorContextRef.current);
-        rebuildLineCanvas(editorContextRef.current);
-        rebuildStampCanvas(editorContextRef.current);
-    }
-
     /**
      * Temporary logging helper
      */
@@ -691,16 +533,16 @@ const MapEditor = ({dimensions, paintTool, paintMode, setPaintMode, deleteMode, 
         <div>
             <div className="tool-bar" style={{maxWidth: "700px"}}>
                 <p>Tool Bar: </p>
-                <button onClick={handleUndo}><img src={UndoIcon} alt="Undo button"></img></button>
-                <button onClick={handleRedo}><img src={RedoIcon} alt="Redo button"></img></button>
-                <button onClick={handleSave}><img src={SaveIcon} alt="Save button"></img></button>
+                <button onClick={() => toolbarUndo(commandManagerRef)}><img src={UndoIcon} alt="Undo button"></img></button>
+                <button onClick={() => toolbarRedo(commandManagerRef)}><img src={RedoIcon} alt="Redo button"></img></button>
+                <button onClick={() => toolbarSave(mapStateRef, document)}><img src={SaveIcon} alt="Save button"></img></button>
                 <button onClick={() => mapUploadRef.current.click()}><img src={ImportIcon} alt="Import button"></img></button>
                 <input type="file"
                 accept=".fog"
                 ref={mapUploadRef}
                 style={{display:"none"}}
-                onChange={handleMapImport} />
-                <button onClick={exportMapAsPNG}><img src={pngExportIcon} alt="PNG button"></img></button>
+                onChange={(e) => toolbarImport(e, editorContextRef, mapStateRef)} />
+                <button onClick={() => toolbarPNGExport(document, editorContextRef)}><img src={pngExportIcon} alt="PNG button"></img></button>
             </div>
             <div id="viewport" className="map-viewport">
                 <div ref={canvasStageRef} className="canvas-stage">
