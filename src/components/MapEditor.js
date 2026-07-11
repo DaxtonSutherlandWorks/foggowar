@@ -73,9 +73,11 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
 
     //Toolbar Refs
     const mapUploadRef = useRef(null);
-    const alterationDimensions = useRef({up: 0, left: 0, right: 0, down: 0});
+    //const alterationDimensions = useRef({up: 0, left: 0, right: 0, down: 0});
     
+    //Resize UseStates
     const [resizeMode, setResizeMode] = useState("expand");
+    const [alterationDimensions, setAlterationDimensions] = useState({up: 0, left: 0, right: 0, down: 0})
 
     /**
      * Initializes our editor context and creates a new command editor to support brush execution and undoing
@@ -141,8 +143,8 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
         mapUploadRef.current.click();
 
         //Sizing canvases
-        const width = dimensions[1] * tileSize;
-        const height = dimensions[0] * tileSize;
+        const width = dimensions[0] * tileSize;
+        const height = dimensions[1] * tileSize;
 
         resizeCanvas(lineCanvasRef.current, width, height);
         resizeCanvas(stampCanvasRef.current, width, height);
@@ -545,8 +547,10 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
         
         const direction = event.target.id.split("-")[0];
 
-        alterationDimensions.current[direction] = resizeMode === "expand" ? alterationDimensions.current[direction] + 1 : alterationDimensions.current[direction] - 1;
+        let newDimensions = {up: alterationDimensions["up"], left: alterationDimensions["left"], right: alterationDimensions["right"], down: alterationDimensions["down"]};
+        newDimensions[direction] = resizeMode === "expand" ? newDimensions[direction] + 1 : newDimensions[direction] - 1;
 
+        setAlterationDimensions(newDimensions);
     }
 
     /**
@@ -558,8 +562,8 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
         const newDimensions = 
         {
             //Calculates new column/row data
-            columns: mapStateRef.current.metadata.dimensions[1] + alterationDimensions.current["left"] + alterationDimensions.current["right"],
-            rows: mapStateRef.current.metadata.dimensions[0] + alterationDimensions.current["up"] + alterationDimensions.current["down"],
+            columns: mapStateRef.current.metadata.dimensions[0] + alterationDimensions["left"] + alterationDimensions["right"],
+            rows: mapStateRef.current.metadata.dimensions[1] + alterationDimensions["up"] + alterationDimensions["down"],
 
         }
 
@@ -572,13 +576,13 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
         }
 
         //Update map metadata
-        updateDimensions(mapStateRef.current, [newDimensions.rows, newDimensions.columns]);
+        updateDimensions(mapStateRef.current, [newDimensions.columns, newDimensions.rows]);
 
         //Shift geometry if resizing from left/top to account for shifting world space
-        if (alterationDimensions.current.left !== 0 || alterationDimensions.current.up !== 0)
+        if (alterationDimensions["left"] !== 0 || alterationDimensions["up"] !== 0)
         {
-            const offsetX = alterationDimensions.current.left * tileSize;
-            const offsetY = alterationDimensions.current.up * tileSize;
+            const offsetX = alterationDimensions["left"] * tileSize;
+            const offsetY = alterationDimensions["up"] * tileSize;
 
             shiftGeometry(mapStateRef, offsetX, offsetY);
         }
@@ -655,7 +659,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
      * Zeroes out alteration dimensions, meant to be used after a resize
      */
     const resestAlterationDimensions = () => {
-        alterationDimensions.current = {up: 0, left: 0, right: 0, down: 0};
+        setAlterationDimensions({up: 0, left: 0, right: 0, down: 0});
     }
 
     /**
@@ -691,7 +695,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
             </div>
             <div id="viewport" className="map-viewport">
                 <div ref={canvasStageRef} className="canvas-stage">
-                    <div style={{position: " ", width: dimensions[1] * tileSize, height: dimensions[0] * tileSize}}>
+                    <div style={{position: " ", width: dimensions[0] * tileSize, height: dimensions[1] * tileSize}}>
                         <canvas ref={stampCanvasRef} className="stamp-canvas"></canvas>
                         <canvas ref={lineCanvasRef} className="line-canvas"></canvas>
                         <canvas ref={overlayCanvasRef} className="overlay-canvas"></canvas>
@@ -705,27 +709,58 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
             <div>
                 <button onClick={logger}>test</button>
             </div>
-            <div>
-                <dialog id="resize-dialog" closedby="any">
-                    <h1>Resize Map</h1>
-                    <button onClick={handleResizeModeClick}>{resizeMode}</button>
-                    <div className="resize-graphic-container">
-                        <button id="up-resize" onClick={setResizeDimensions}>
-                            <img id="up-icon" src={arrowUpIcon} alt="Up Arrow Icon" />
-                        </button>
-                        <button id="left-resize" onClick={setResizeDimensions}>
-                            <img id="left-icon" src={arrowLeftIcon} alt="Left Arrow Icon" />
-                        </button>
-                        <img src={gridIcon} alt="Grid Icon" />
-                        <button id="right-resize" onClick={setResizeDimensions}>
-                            <img id="right-icon" src={arrowRightIcon} alt="Right Arrow Icon" />
-                        </button>
-                        <button id="down-resize" onClick={setResizeDimensions}>
-                            <img id="down-icon" src={arrowDownIcon} alt="Down Arrow Icon" />
-                        </button>
+            <div className="resize-dialog-wrapper">
+                <dialog id="resize-dialog" closedby="any" className="resize-dialog">
+                    <div className="resize-dialog-content">
+                        <div className="resize-header">
+                            <h1>Resize Map</h1>
+                        </div>
+                        <div className="dimensions-box">
+                            <p>Current Dimensions: {mapStateRef.current.metadata.dimensions[0]} x {mapStateRef.current.metadata.dimensions[1]}</p>
+                            <p>New Dimensions: {mapStateRef.current.metadata.dimensions[0] + alterationDimensions["left"] + alterationDimensions["right"]} x {mapStateRef.current.metadata.dimensions[1] + alterationDimensions["up"] + alterationDimensions["down"]}</p>
+                        </div>
+                        <div className="resize-button-wrapper">
+                            <label htmlFor="up-resize" style={{paddingBottom: "10px"}}>{resizeMode === "expand" ? "Add to" : "Remove from"} Top:</label>
+                            <button id="up-resize" onClick={setResizeDimensions}>
+                                    <img id="up-icon" src={arrowUpIcon} alt="Up Arrow Icon" />
+                            </button>
+                        </div>
+                        <div className="resize-graphic-wrapper">
+                            <div className="resize-button-wrapper">
+                                <label htmlFor="left-resize" style={{paddingBottom: "10px"}}>{resizeMode === "expand" ? "Add to" : "Remove from"} Left:</label>
+                                <button id="left-resize" onClick={setResizeDimensions}>
+                                    <img id="left-icon" src={arrowLeftIcon} alt="Left Arrow Icon" />
+                                </button>
+                            </div>
+                            <div className="grid-graphic-wrapper">
+                                <br />
+                                <p style={{marginBlock: "0px", marginInline: "auto"}}>{alterationDimensions["left"] + alterationDimensions["right"]}</p>
+                                <p style={{margin: "auto"}}>{alterationDimensions["up"] + alterationDimensions["down"]}</p>
+                                <img src={gridIcon} alt="Grid Icon" style={{height: "200px", margin: "auto"}} />
+                                <br />
+                                <div style={{display: "flex", justifyContent: "center"}}>
+                                    <label htmlFor="resize-mode-selector" style={{paddingRight: "10px"}}>Resize Mode:</label>
+                                    <button id="resize-mode-selector" onClick={handleResizeModeClick} style={{marginBottom: "20px"}}>{resizeMode === "expand" ? "Add" : "Remove"}</button>
+                                </div>
+                            </div>
+                            <div className="resize-button-wrapper">
+                                <label htmlFor="right-resize" style={{paddingBottom: "10px"}}>{resizeMode === "expand" ? "Add to" : "Remove from"} Right:</label>
+                                <button id="right-resize" onClick={setResizeDimensions}>
+                                    <img id="right-icon" src={arrowRightIcon} alt="Right Arrow Icon" />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="resize-button-wrapper" style={{paddingBottom: "20px"}}>
+                            <label htmlFor="down-resize" style={{paddingBottom: "10px"}}>{resizeMode === "expand" ? "Add to" : "Remove from"} Bottom:</label>
+                            <button id="down-resize" onClick={setResizeDimensions}>
+                                    <img id="down-icon" src={arrowDownIcon} alt="Down Arrow Icon" />
+                            </button>
+                        </div>
+                        <div>
+                            <button onClick={alterDimensions} commandfor="resize-dialog" command="close" style={{marginRight: "20px", fontSize: "1.5em"}}>Submit Alterations</button>
+                            <button commandfor="resize-dialog" command="close" style={{fontSize: "1.5em"}}>Cancel</button>
+                        </div>
                     </div>
-                    <button onClick={alterDimensions} commandfor="resize-dialog" command="close">Submit Alterations</button>
-                    <button commandfor="resize-dialog" command="close">Cancel</button>
                 </dialog>
             </div>
         </div>

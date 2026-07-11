@@ -12,7 +12,7 @@ function App() {
   const [currStamp, setCurrStamp] = useState("/stamps/stampPH.svg");
   const [paintMode, paintModeSetter] = useState("inactive");
   const [deleteMode, setDeleteMode] = useState(false);
-  const [dimensions, setDimensions] = useState([1,1]);
+  const [dimensions, setDimensions] = useState([100, 100]);
 
   return (
     <div className='page-content'>

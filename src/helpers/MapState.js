@@ -16,8 +16,8 @@ export function createInitialMapState(mapDimensions, mapTileSize)
         title: "TEST MAP",
 
         metadata: {
-            width: mapDimensions[1] * mapTileSize,
-            height: mapDimensions[0] * mapTileSize,
+            width: mapDimensions[0] * mapTileSize,
+            height: mapDimensions[1] * mapTileSize,
             dimensions: mapDimensions,
             tileSize: mapTileSize
         },
@@ -33,8 +33,8 @@ export function createInitialMapState(mapDimensions, mapTileSize)
  */
 export function updateDimensions(state, newDimensions)
 {
-    state.metadata.width = newDimensions[1] * state.metadata.tileSize;
-    state.metadata.height = newDimensions[0] * state.metadata.tileSize;
+    state.metadata.width = newDimensions[0] * state.metadata.tileSize;
+    state.metadata.height = newDimensions[1] * state.metadata.tileSize;
     state.metadata.dimensions = newDimensions;
 }
 
