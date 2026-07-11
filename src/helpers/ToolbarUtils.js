@@ -157,3 +157,79 @@ const validateMapState = (data) =>
         throw new Error("Invalid shapes");
     }
 }
+
+/*******************************************************************************
+ * Resizing Helpers
+ *******************************************************************************/
+
+/**
+ * Updates the position of every shape, line, and stamp to account for shifting world origin through resizing.
+ */
+export function shiftGeometry(mapStateRef, dx, dy)
+{
+    const mapState = mapStateRef.current;
+
+    for (let shape of mapState.shapes)
+    {
+        translateShape(shape, dx, dy);
+    }
+
+    for (let line of mapState.lines)
+    {
+        translateLine(line, dx, dy);
+    }
+
+    for (let stamp of mapState.stamps)
+    {
+        translateStamp(stamp, dx, dy);
+    }
+}
+
+/**
+ * Shifts the points of a shape based on type and given distance
+ */
+const translateShape = (shape, dx, dy) =>
+{
+    switch(shape.type)
+    {
+        case "rectangle":
+            shape.x += dx;
+            shape.y += dy;
+            break;
+
+        case "circle":
+            shape.x += dx;
+            shape.y += dy;
+            break;
+
+        case "polygon":
+            shape.points.forEach(p => {
+                p.x += dx;
+                p.y += dy;
+            });
+            break;
+
+        default:
+            break;
+    }
+}
+
+/**
+ * Shifts the points of lines based on distance.
+ */
+const translateLine = (line, dx, dy) =>
+{
+    line.x1 += dx;
+    line.x2 += dx;
+    line.y1 += dy;
+    line.y2 += dy;
+}
+
+/**
+ * Shifts the origin of a stamp based on distance
+ */
+const translateStamp = (stamp, dx, dy) =>
+{
+    stamp.x += dx;
+    stamp.y += dy;
+}

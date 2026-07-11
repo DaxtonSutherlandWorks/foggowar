@@ -12,13 +12,14 @@ function App() {
   const [currStamp, setCurrStamp] = useState("/stamps/stampPH.svg");
   const [paintMode, paintModeSetter] = useState("inactive");
   const [deleteMode, setDeleteMode] = useState(false);
+  const [dimensions, setDimensions] = useState([1,1]);
 
   return (
     <div className='page-content'>
       <Header></Header>
       <div className='workspace'>
         <BrushBox paintTool={paintTool} paintToolSetter={paintToolSetter} paintMode={paintMode} paintModeSetter={paintModeSetter} deleteMode={deleteMode} deleteModeSetter={setDeleteMode}></BrushBox>
-        <MapEditor dimensions={[100,100]} paintTool={paintTool} paintMode={paintMode} setPaintMode={paintModeSetter} deleteMode={deleteMode} currStamp={currStamp} stampSize={[70,70]} tileSize={70} ></MapEditor>
+        <MapEditor dimensions={dimensions} dimensionsSetter={setDimensions} paintTool={paintTool} paintMode={paintMode} setPaintMode={paintModeSetter} deleteMode={deleteMode} currStamp={currStamp} stampSize={[70,70]} tileSize={70} ></MapEditor>
       </div>
       <Footer></Footer>
     </div>

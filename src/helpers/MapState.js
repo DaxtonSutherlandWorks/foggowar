@@ -5,7 +5,7 @@
 /**
  * Returns a default mapState
  */
-export function createInitialMapState(mapDimensions, tileSize)
+export function createInitialMapState(mapDimensions, mapTileSize)
 {
     return {
         version: "0.1.1",
@@ -16,15 +16,26 @@ export function createInitialMapState(mapDimensions, tileSize)
         title: "TEST MAP",
 
         metadata: {
-            width: mapDimensions[1] * tileSize,
-            height: mapDimensions[0] * tileSize,
-            dimensions: mapDimensions
+            width: mapDimensions[1] * mapTileSize,
+            height: mapDimensions[0] * mapTileSize,
+            dimensions: mapDimensions,
+            tileSize: mapTileSize
         },
 
         shapes: [],
         lines: [],
         stamps: []
     };
+}
+
+/**
+ * Updates dimensions
+ */
+export function updateDimensions(state, newDimensions)
+{
+    state.metadata.width = newDimensions[1] * state.metadata.tileSize;
+    state.metadata.height = newDimensions[0] * state.metadata.tileSize;
+    state.metadata.dimensions = newDimensions;
 }
 
 /**
