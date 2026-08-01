@@ -1,5 +1,3 @@
-//TODO: Bug when activeley drawing and middle dragging.
-
 import { useEffect, useRef, useState } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
@@ -23,7 +21,9 @@ import { circlePointerDown, circlePointerMove } from "../helpers/CircleUtils";
 import { polygonPointerDown, polygonPointerMove } from "../helpers/PolygonUtils";
 import { stampPointerDown, stampPointerMove } from "../helpers/StampUtils";
 import { panPointerDown, panPointerLeave, panPointerMove, panPointerUp, zoomPointerWheel } from "../helpers/PanZoomUtils";
-import { shiftGeometry, toolbarImport, toolbarPNGExport, toolbarRedo, toolbarSave, toolbarUndo } from "../helpers/ToolbarUtils";
+import { resizeCanvas, shiftGeometry, toolbarImport, toolbarPNGExport, toolbarRedo, toolbarSave, toolbarUndo } from "../helpers/ToolbarUtils";
+import MapEditorToolBar from "./MapEditorToolBar";
+import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaintMode, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -70,14 +70,9 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
     const commandManagerRef = useRef(null);
     const mapStateRef = useRef(createInitialMapState(dimensions, tileSize));
     const interactionStateRef = useRef({mode: "painting", tool: paintMode, deletion: deleteMode, grabbing: false, middlePan: false});
-
-    //Toolbar Refs
-    const mapUploadRef = useRef(null);
-    //const alterationDimensions = useRef({up: 0, left: 0, right: 0, down: 0});
     
-    //Resize UseStates
-    const [resizeMode, setResizeMode] = useState("expand");
-    const [alterationDimensions, setAlterationDimensions] = useState({up: 0, left: 0, right: 0, down: 0})
+    //Flag to keep toolbar from loading before dependancies exist
+    const [editorContextReady, setEditorContextReady] = useState(false);
 
     /**
      * Initializes our editor context and creates a new command editor to support brush execution and undoing
@@ -90,6 +85,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
             lineCanvasRef,
             stampCanvasRef,
             overlayCanvasRef,
+            dotCanvasRef,
 
             solidContextRef,
             gridContextRef,
@@ -97,6 +93,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
             lineContextRef,
             stampContextRef,
             overlayContextRef,
+            dotContextRef,
 
             mapStateRef,
             interactionStateRef,
@@ -111,10 +108,16 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
             viewportRef,
             canvasStageRef,
 
+            guideRadiusRef,
+            guideHoverRadiusRef,
+
             commandManagerRef
         }
 
         commandManagerRef.current = new CommandManager(editorContextRef.current);
+
+        setEditorContextReady(true);
+
     }, []);
 
     /**
@@ -138,9 +141,6 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
 
         //Initializing viewport
         viewportRef.current = document.getElementById("viewport");
-
-        //Setting up buttons
-        mapUploadRef.current.click();
 
         //Sizing canvases
         const width = dimensions[0] * tileSize;
@@ -176,7 +176,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
        viewportRef.current.addEventListener('wheel', onPointerWheel, {passive: false});
 
        //Draws all the visual guides
-       drawInitialVisuals();
+       drawInitialVisuals(editorContextRef);
 
         //Loads in the initial stamp image
         loadStamp(currStamp)
@@ -333,7 +333,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
         //Draws active guide dot if not panning, clears old ones otherwise.
         if (interactionStateRef.current.mode !== "panning")
         {
-            drawHoverGuide(overlayContextRef, guidePoint, interactionStateRef.current.deletion);
+            drawHoverGuide(overlayContextRef, guidePoint, interactionStateRef.current.deletion, guideHoverRadiusRef);
         }
         else
         {
@@ -411,257 +411,6 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
         zoomPointerWheel(editorContextRef, event);
     };
 
-    /********************************************************************************
-     * Drawing Helpers
-     ********************************************************************************/
-
-    /**
-     * Draws all the initial visual guides in the editor. This includes:
-     * -Background color
-     * -Solid mask
-     * -Grid
-     * -Guide dots
-     */
-    const drawInitialVisuals = () => {
-
-        //Sets up the solid canvas
-        solidContextRef.current.fillStyle = "#fdf8f0ff"
-        solidContextRef.current.fillRect(0, 0, solidCanvasRef.current.width, solidCanvasRef.current.height);
-
-        //Sets up the grid canvas
-        gridContextRef.current.fillStyle = "#ffebcd";
-        gridContextRef.current.fillRect(0, 0, gridCanvasRef.current.width, gridCanvasRef.current.height);
-        
-        //Draws the dots and grid
-        drawStaticGuides();
-    }
-
-
-    /**
-     * Draws the guide dots along with the grid
-     */
-    const drawStaticGuides = () => {
-
-        gridContextRef.current.fillStyle = "#000000";
-
-        const { width, height } = gridContextRef.current.canvas;
-
-        const cols = Math.ceil(width / tileSize);
-        const rows = Math.ceil(height / tileSize);
-
-        //This loop draws dots for each tile and gridlines
-        for (let i = 0; i <= cols; i++)
-        {
-            //Draws a gridline for this column
-            gridContextRef.current.beginPath();
-            gridContextRef.current.moveTo(i * tileSize, 0);
-            gridContextRef.current.lineTo(i * tileSize, gridContextRef.current.canvas.height);
-            gridContextRef.current.lineWidth = 1;
-            gridContextRef.current.strokeStyle = "#7a7a7aff";
-            gridContextRef.current.stroke();
-            
-            for (let j = 0; j <= rows; j++)
-            {
-                const x = i * tileSize;
-                const y = j * tileSize;
-
-                //Draws a gridline for this row once
-                if (i === 0)
-                {
-                    gridContextRef.current.beginPath();
-                    gridContextRef.current.moveTo(0, j * tileSize);
-                    gridContextRef.current.lineTo(gridContextRef.current.canvas.width, j * tileSize);
-                    gridContextRef.current.lineWidth = 1;
-                    gridContextRef.current.strokeStyle = "#7a7a7aff";
-                    gridContextRef.current.stroke();
-                }
-
-                //Corners
-                drawDot(dotContextRef, x, y, guideRadiusRef.current);
-
-                //Line Midpoints
-                if (x + tileSize <= width)
-                {
-                    drawDot(dotContextRef, x + (tileSize / 2), y, guideRadiusRef.current)
-                }
-                if (y + tileSize <= height)
-                {
-                    drawDot(dotContextRef, x, y + (tileSize / 2), guideRadiusRef.current)
-                }
-
-                //Center Point
-                drawDot(dotContextRef, x + (tileSize / 2), y + (tileSize / 2), guideRadiusRef.current)
-            }
-        }
-    }
-
-    /**
-     * Draws a dot with given params
-     */
-    const drawDot = (context, x, y, r) =>
-    {
-        context.current.fillStyle = "black"
-        context.current.beginPath();
-        context.current.arc(x, y, r, 0, Math.PI * 2);
-        context.current.fill();
-    }
-
-    /**
-     * Draws a larger dot over a guide dot to denote which dot is closest to the cursor
-     */
-    const drawHoverGuide = (context, dot, deleteMode) =>
-    {
-        //Clears the canvas of previous guide dot and preview
-        context.current.clearRect(0, 0, context.current.canvas.width, context.current.canvas.height);
-
-        //Aborts if somehow no dot was provided
-        if (!dot) return;
-
-        if (deleteMode)
-        {
-            context.current.fillStyle = "red";
-        }
-
-        else
-        {
-            context.current.fillStyle = "#000000ff";
-        }
-        
-        //Draws the new guide dot
-        context.current.beginPath();
-        context.current.arc(dot.x, dot.y, guideHoverRadiusRef.current, 0, Math.PI * 2);
-        context.current.fill();
-    }
-
-    /**
-     * Flips resize mode
-     */
-    const handleResizeModeClick = () => {
-        setResizeMode(resizeMode === "expand" ? "reduce" : "expand");
-    }
-
-    /**
-     * Updates an object containing dimension alterations for resizing.
-     */
-    const setResizeDimensions = (event) => {
-        
-        const direction = event.target.id.split("-")[0];
-
-        let newDimensions = {up: alterationDimensions["up"], left: alterationDimensions["left"], right: alterationDimensions["right"], down: alterationDimensions["down"]};
-        newDimensions[direction] = resizeMode === "expand" ? newDimensions[direction] + 1 : newDimensions[direction] - 1;
-
-        setAlterationDimensions(newDimensions);
-    }
-
-    /**
-     * Handles a click for adding/removing rows/column
-     */
-    const alterDimensions = () => {
-        
-        //Calculate new dimensions
-        const newDimensions = 
-        {
-            //Calculates new column/row data
-            columns: mapStateRef.current.metadata.dimensions[0] + alterationDimensions["left"] + alterationDimensions["right"],
-            rows: mapStateRef.current.metadata.dimensions[1] + alterationDimensions["up"] + alterationDimensions["down"],
-
-        }
-
-        //Protection for going into negative or zero dimensions
-        if (newDimensions.columns <= 0 || newDimensions.rows <= 0)
-        {
-            resestAlterationDimensions();
-            alert("Given alterations will result in negative dimensions, please enter different values");
-            return;
-        }
-
-        //Update map metadata
-        updateDimensions(mapStateRef.current, [newDimensions.columns, newDimensions.rows]);
-
-        //Shift geometry if resizing from left/top to account for shifting world space
-        if (alterationDimensions["left"] !== 0 || alterationDimensions["up"] !== 0)
-        {
-            const offsetX = alterationDimensions["left"] * tileSize;
-            const offsetY = alterationDimensions["up"] * tileSize;
-
-            shiftGeometry(mapStateRef, offsetX, offsetY);
-        }
-
-        //Resize canvases
-        const width = newDimensions.columns * tileSize;
-        const height = newDimensions.rows * tileSize;
-
-        resizeCanvas(lineCanvasRef.current, width, height);
-        resizeCanvas(stampCanvasRef.current, width, height);
-        resizeCanvas(gridCanvasRef.current, width, height);
-        resizeCanvas(borderCanvasRef.current, width, height);
-        resizeCanvas(overlayCanvasRef.current, width, height);
-        resizeCanvas(solidCanvasRef.current, width, height);
-        resizeCanvas(dotCanvasRef.current, width, height);
-
-        //Reset render state
-        resizeRebuild()
-
-        resestAlterationDimensions();
-    }
-
-    /**
-     * This rebuilds the solid, line, and stamp canvases following a resize to account for clipping out of bounds and zoom/pan.
-     * Also redraws the static guides.
-     */
-    const resizeRebuild = () => {
-
-        solidContextRef.current.save();
-        lineContextRef.current.save();
-        stampContextRef.current.save();
-
-        //Apply camera transform
-        applyViewportTransform(viewportStateRef.current, canvasStageRef.current);
-
-        //Apply clipping
-        applyMapClip(solidContextRef.current);
-        applyMapClip(lineContextRef.current);
-        applyMapClip(stampContextRef.current);
-
-        //TODO: Some kind of culling for out of bounds shapes would be a good efficiency enhancement.
-        //Rerender editor
-        drawInitialVisuals();
-        rebuildSolidCanvas(editorContextRef.current);
-        rebuildLineCanvas(editorContextRef.current);
-        rebuildStampCanvas(editorContextRef.current);
-
-        solidContextRef.current.restore();
-        lineContextRef.current.restore();
-        stampContextRef.current.restore();
-
-    }
-
-    /**
-     * Canvas resizer helper
-     */
-    const resizeCanvas = (canvas, width, height) => {
-        canvas.width = width;
-        canvas.height = height;
-    }
-
-    /**
-     * Canvas clipping helper, extra insurance to make sure nothing is drawn out of bounds
-     */
-    const applyMapClip = (context) => {
-        context.beginPath();
-
-        context.rect(0, 0, mapStateRef.current.metadata.width, mapStateRef.current.metadata.height);
-
-        context.clip();
-    }
-
-    /**
-     * Zeroes out alteration dimensions, meant to be used after a resize
-     */
-    const resestAlterationDimensions = () => {
-        setAlterationDimensions({up: 0, left: 0, right: 0, down: 0});
-    }
-
     /**
      * Temporary logging helper
      */
@@ -669,7 +418,6 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
         console.log(interactionStateRef.current)
         console.log(mapStateRef.current);
         console.log(viewportStateRef.current)
-        console.log(resizeMode)
     }
 
     /***********************************************************************
@@ -679,20 +427,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
      ***********************************************************************/
     return ( 
         <div>
-            <div className="tool-bar" style={{maxWidth: "700px"}}>
-                <p>Tool Bar: </p>
-                <button onClick={() => toolbarUndo(commandManagerRef)}><img src={UndoIcon} alt="Undo button"></img></button>
-                <button onClick={() => toolbarRedo(commandManagerRef)}><img src={RedoIcon} alt="Redo button"></img></button>
-                <button onClick={() => toolbarSave(mapStateRef, document)}><img src={SaveIcon} alt="Save button"></img></button>
-                <button onClick={() => mapUploadRef.current.click()}><img src={ImportIcon} alt="Import button"></img></button>
-                <input type="file"
-                accept=".fog"
-                ref={mapUploadRef}
-                style={{display:"none"}}
-                onChange={(e) => toolbarImport(e, editorContextRef, mapStateRef)} />
-                <button onClick={() => toolbarPNGExport(document, editorContextRef)}><img src={pngExportIcon} alt="PNG button"></img></button>
-                <button command="show-modal" commandfor="resize-dialog"><img src={resizeIcon} alt="Resize button"></img></button>
-            </div>
+            {editorContextReady && <MapEditorToolBar editorContextRef={editorContextRef}></MapEditorToolBar>}
             <div id="viewport" className="map-viewport">
                 <div ref={canvasStageRef} className="canvas-stage">
                     <div style={{position: " ", width: dimensions[0] * tileSize, height: dimensions[1] * tileSize}}>
@@ -708,60 +443,6 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
             </div>
             <div>
                 <button onClick={logger}>test</button>
-            </div>
-            <div className="resize-dialog-wrapper">
-                <dialog id="resize-dialog" closedby="any" className="resize-dialog">
-                    <div className="resize-dialog-content">
-                        <div className="resize-header">
-                            <h1>Resize Map</h1>
-                        </div>
-                        <div className="dimensions-box">
-                            <p>Current Dimensions: {mapStateRef.current.metadata.dimensions[0]} x {mapStateRef.current.metadata.dimensions[1]}</p>
-                            <p>New Dimensions: {mapStateRef.current.metadata.dimensions[0] + alterationDimensions["left"] + alterationDimensions["right"]} x {mapStateRef.current.metadata.dimensions[1] + alterationDimensions["up"] + alterationDimensions["down"]}</p>
-                        </div>
-                        <div className="resize-button-wrapper">
-                            <label htmlFor="up-resize" style={{paddingBottom: "10px"}}>{resizeMode === "expand" ? "Add to" : "Remove from"} Top:</label>
-                            <button id="up-resize" onClick={setResizeDimensions}>
-                                    <img id="up-icon" src={arrowUpIcon} alt="Up Arrow Icon" />
-                            </button>
-                        </div>
-                        <div className="resize-graphic-wrapper">
-                            <div className="resize-button-wrapper">
-                                <label htmlFor="left-resize" style={{paddingBottom: "10px"}}>{resizeMode === "expand" ? "Add to" : "Remove from"} Left:</label>
-                                <button id="left-resize" onClick={setResizeDimensions}>
-                                    <img id="left-icon" src={arrowLeftIcon} alt="Left Arrow Icon" />
-                                </button>
-                            </div>
-                            <div className="grid-graphic-wrapper">
-                                <br />
-                                <p style={{marginBlock: "0px", marginInline: "auto"}}>{alterationDimensions["left"] + alterationDimensions["right"]}</p>
-                                <p style={{margin: "auto"}}>{alterationDimensions["up"] + alterationDimensions["down"]}</p>
-                                <img src={gridIcon} alt="Grid Icon" style={{height: "200px", margin: "auto"}} />
-                                <br />
-                                <div style={{display: "flex", justifyContent: "center"}}>
-                                    <label htmlFor="resize-mode-selector" style={{paddingRight: "10px"}}>Resize Mode:</label>
-                                    <button id="resize-mode-selector" onClick={handleResizeModeClick} style={{marginBottom: "20px"}}>{resizeMode === "expand" ? "Add" : "Remove"}</button>
-                                </div>
-                            </div>
-                            <div className="resize-button-wrapper">
-                                <label htmlFor="right-resize" style={{paddingBottom: "10px"}}>{resizeMode === "expand" ? "Add to" : "Remove from"} Right:</label>
-                                <button id="right-resize" onClick={setResizeDimensions}>
-                                    <img id="right-icon" src={arrowRightIcon} alt="Right Arrow Icon" />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="resize-button-wrapper" style={{paddingBottom: "20px"}}>
-                            <label htmlFor="down-resize" style={{paddingBottom: "10px"}}>{resizeMode === "expand" ? "Add to" : "Remove from"} Bottom:</label>
-                            <button id="down-resize" onClick={setResizeDimensions}>
-                                    <img id="down-icon" src={arrowDownIcon} alt="Down Arrow Icon" />
-                            </button>
-                        </div>
-                        <div>
-                            <button onClick={alterDimensions} commandfor="resize-dialog" command="close" style={{marginRight: "20px", fontSize: "1.5em"}}>Submit Alterations</button>
-                            <button commandfor="resize-dialog" command="close" style={{fontSize: "1.5em"}}>Cancel</button>
-                        </div>
-                    </div>
-                </dialog>
             </div>
         </div>
     );

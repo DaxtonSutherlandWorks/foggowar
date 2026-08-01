@@ -77,6 +77,8 @@ export function toolbarImport(event, editorContextRef, mapStateRef)
 
 /**
  * Exports the entire map as a PNG
+ * 
+ * TODO: Make the output of this a little more stylish and nice looking.
  */
 export function toolbarPNGExport(document, editorContextRef)
 {
@@ -161,6 +163,14 @@ const validateMapState = (data) =>
 /*******************************************************************************
  * Resizing Helpers
  *******************************************************************************/
+
+/**
+ * Canvas resizer helper
+ */
+export function resizeCanvas(canvas, width, height) {
+    canvas.width = width;
+    canvas.height = height;
+}
 
 /**
  * Updates the position of every shape, line, and stamp to account for shifting world origin through resizing.
