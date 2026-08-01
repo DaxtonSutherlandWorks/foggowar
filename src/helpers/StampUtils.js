@@ -5,7 +5,7 @@ import { isSquareCleared } from "./BrushUtils";
 /**
  * Executes stamp draw/deletion clicks
  */
-export function stampPointerDown(editorContextRef, guidePoint, currStamp, stampSize)
+export function stampPointerDown(editorContextRef, guidePoint, currStamp)
 {
     const { interactionStateRef, mapStateRef, commandManagerRef, solidContextRef, stampContextRef} = editorContextRef.current;
     
@@ -32,15 +32,15 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp, stampS
         }
 
         //Checks if the stamp's potential area is clear
-        else if (isSquareCleared(solidContextRef.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) && isSquareCleared(stampContextRef.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
+        else if (isSquareCleared(solidContextRef.current, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height) && isSquareCleared(stampContextRef.current, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height))
         {
             const stamp = {
                 id: crypto.randomUUID(), 
-                imagePath: currStamp, 
+                imagePath: currStamp.image, 
                 x: guidePoint.x, 
                 y: guidePoint.y, 
-                width: stampSize[0], 
-                height: stampSize[1]
+                width: currStamp.width, 
+                height: currStamp.height
             };
 
             //Creates a new command that is executed through its own helper, then added to the manager's undo stack.
@@ -57,19 +57,19 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp, stampS
 /**
  * Handles stamp preview drawing
  */
-export function stampPointerMove(editorContextRef, guidePoint, stampImageRef, stampSize)
+export function stampPointerMove(editorContextRef, guidePoint, stampImg, currStamp)
 {
     const { interactionStateRef, overlayContextRef, solidContextRef, stampContextRef} = editorContextRef.current;
 
     if (guidePoint && !interactionStateRef.current.deletion && interactionStateRef.current.mode === "inactive")
     {
-        overlayContextRef.current.drawImage(stampImageRef.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]);
+        overlayContextRef.current.drawImage(stampImg, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height);
         
-        if (!isSquareCleared(solidContextRef.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]) || !isSquareCleared(stampContextRef.current, guidePoint.x, guidePoint.y, stampSize[0], stampSize[1]))
+        if (!isSquareCleared(solidContextRef.current, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height) || !isSquareCleared(stampContextRef.current, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height))
         {
             overlayContextRef.current.globalCompositeOperation = "source-atop";
             overlayContextRef.current.fillStyle = "red";
-            overlayContextRef.current.fillRect(guidePoint.x + 6, guidePoint.y, stampSize[0], stampSize[1]);
+            overlayContextRef.current.fillRect(guidePoint.x, guidePoint.y, currStamp.width, currStamp.height);
         }
         
     }

@@ -107,9 +107,6 @@ export function drawDot(context, x, y, r)
  */
 export function drawHoverGuide(context, dot, deleteMode, guideHoverRadiusRef)
 {
-    //Clears the canvas of previous guide dot and preview
-    context.current.clearRect(0, 0, context.current.canvas.width, context.current.canvas.height);
-
     //Aborts if somehow no dot was provided
     if (!dot) return;
 

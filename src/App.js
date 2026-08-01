@@ -5,20 +5,21 @@ import ChatBox from './components/ChatBox';
 import MapEditor from './components/MapEditor';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import { StampDatabase } from './stamps/StampDatabase';
 
 function App() {
 
   const [paintTool, paintToolSetter] = useState("line");
-  const [currStamp, setCurrStamp] = useState("/stamps/stampPH.svg");
+  const [currStamp, setCurrStamp] = useState(StampDatabase["tree"]);
   const [paintMode, paintModeSetter] = useState("inactive");
   const [deleteMode, setDeleteMode] = useState(false);
-  const [dimensions, setDimensions] = useState([10, 10]);
+  const [dimensions, setDimensions] = useState([100, 100]);
 
   return (
     <div className='page-content'>
       <Header></Header>
       <div className='workspace'>
-        <BrushBox paintTool={paintTool} paintToolSetter={paintToolSetter} paintMode={paintMode} paintModeSetter={paintModeSetter} deleteMode={deleteMode} deleteModeSetter={setDeleteMode}></BrushBox>
+        <BrushBox paintTool={paintTool} paintToolSetter={paintToolSetter} paintMode={paintMode} paintModeSetter={paintModeSetter} deleteMode={deleteMode} deleteModeSetter={setDeleteMode} currStamp={currStamp} setCurrStamp={setCurrStamp}></BrushBox>
         <MapEditor dimensions={dimensions} dimensionsSetter={setDimensions} paintTool={paintTool} paintMode={paintMode} setPaintMode={paintModeSetter} deleteMode={deleteMode} currStamp={currStamp} stampSize={[70,70]} tileSize={70} ></MapEditor>
       </div>
       <Footer></Footer>

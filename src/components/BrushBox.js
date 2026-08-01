@@ -5,19 +5,27 @@ import CircleIcon from "../img/circleIcon.svg"
 import PolygonIcon from "../img/polygonIcon.svg"
 import StampIcon from "../img/stampIcon.svg"
 import PanIcon from "../img/panIcon.svg"
-
-//TODO: Eventually replace these with direct path reads from an object of available stamps.
-import CastleStamp from "../stamps/castleStamp.svg"
-import FenceStamp from "../stamps/fenceStamp.svg"
-import GateStamp from "../stamps/gateStamp.svg"
-import GrassStamp from "../stamps/grassStamp.svg"
-import RubbleStamp from "../stamps/rubbleStamp.svg"
-import TentStamp from "../stamps/tentStamp.svg"
-import TreeStamp from "../stamps/treeStamp.svg"
-import WaterStamp from "../stamps/waterStamp.svg"
+import { getAllStamps, getStamp } from "../stamps/StampDatabase"
+import { useEffect } from "react"
 
 
-const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, deleteMode, deleteModeSetter}) => {
+const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, deleteMode, deleteModeSetter, loadStamp, currStamp, setCurrStamp}) => {
+    
+    //Sets up HTML elements for stamps.
+    const stamps = getAllStamps();
+
+    const handleStampSelectionClick = (event) => {
+        let selection = event.target.closest('button').id.split("-");
+        
+        setCurrStamp(getStamp(selection[0]));
+    }
+
+    const stampGridItems = stamps.map(stamp => 
+        <button id={stamp.id + "-selection-button"} class="stamp-grid-item" onClick={handleStampSelectionClick} style={{backgroundColor: currStamp.name === stamp.name ? "#9e9ee2" : "#e6e6fa"}}>
+            <img src={stamp.image} alt="" />
+            <span>{stamp.name}</span>
+        </button>
+    )
 
     /**
      * Changes the parent paintMode useState to match user brush selection
@@ -25,7 +33,7 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
     const handleBrushChange = (event) => {
 
         //Gets id prefix
-        let id = event.target.id.split("-")
+        let id = event.target.closest('button').id.split("-")
 
         switch (id[0])
         {
@@ -56,6 +64,22 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
                 return;
         }
     }
+
+    const handleStampOverlayActivation = (event) => {
+        paintToolSetter("stamp");
+        paintModeSetter("inactive");
+
+        document.getElementById("stamp-overlay").classList.add("open");
+    }
+
+    const handleStampOverlayDeactivation = (event) => {
+        paintToolSetter("line");
+        paintModeSetter("inactive");
+
+        document.getElementById("stamp-overlay").classList.remove("open");
+    }
+
+    
 
     const handleDeleteChange = (event) => {
         //Gets id prefix
@@ -93,7 +117,7 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
                     <img id="polygon-icon" src={PolygonIcon} alt="Polygon Icon"></img>
                     <span>Polygon</span>
                 </button>
-                <button id="stamp-button" className="icon-button" disabled={paintMode === "painting"} onClick={handleBrushChange} style={{backgroundColor: paintTool === "stamp" & paintMode !== "panning" ? "#9e9ee2" : "#e6e6fa"}}>
+                <button id="stamp-button" className="icon-button" disabled={paintMode === "painting"} onClick={handleStampOverlayActivation} style={{backgroundColor: paintTool === "stamp" & paintMode !== "panning" ? "#9e9ee2" : "#e6e6fa"}}>
                     <img id="stamp-icon" src={StampIcon} alt="Stamp Icon"></img>
                     <span>Stamp</span>
                 </button>
@@ -113,53 +137,25 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
                 <p><span>Rectangle:</span> Clear or fill a rectangle.</p>
                 <p><span>Circle:</span> Clear or fill a cirlce.</p>
                 <p><span>Polygon:</span> Clear or fill a polygon by placing points, ending where you started.</p>
-                <p><span>Stamp:</span> Place a decorative tree in an open tile.</p>
+                <p><span>Stamp:</span> Place a stamp in an open tile.</p>
                 <p><span>Pan:</span> Drag the map to change your view.</p>
             </div>
         
-            {/* Overlays TODO: Remove if now more overlays are needed*/}
+            {/* Overlays TODO: Remove if no more overlays are needed*/}
             {/* Stamp Overlay */}
-            <div class="stamp-overlay">
+            <div id="stamp-overlay" class="stamp-overlay">
                 <div class="stamp-overlay-header">
                     <h3>Stamp Library</h3>
-                    <button class="close-button">
+                    <button class="close-button" onClick={handleStampOverlayDeactivation}>
                         X
                     </button>
                 </div>
+                <div style={{display: "flex", justifyContent: "center"}}>
+                    <button className="mode-button" id="draw-button" disabled={paintMode === "painting"} onClick={handleDeleteChange} style={{backgroundColor: deleteMode ? "#e6e6fa" : "#9e9ee2"}}>Add Stamp</button>
+                    <button className="mode-button" id="delete-button" disabled={paintMode === "painting"} onClick={handleDeleteChange} style={{backgroundColor: deleteMode ? "#9e9ee2" : "#e6e6fa"}}>Delete Stamp</button>
+                </div>
                 <div class="stamp-overlay-grid">
-                    {/* TODO: Ehance this to read from and object and automatically make grid items */}
-                    <button class="stamp-grid-item">
-                        <img src={CastleStamp} alt="" />
-                        <span>Castle</span>
-                    </button>
-                    <button class="stamp-grid-item">
-                        <img src={FenceStamp} alt="" />
-                        <span>Fence</span>
-                    </button>
-                    <button class="stamp-grid-item">
-                        <img src={GateStamp} alt="" />
-                        <span>Gate</span>
-                    </button>
-                    <button class="stamp-grid-item">
-                        <img src={GrassStamp} alt="" />
-                        <span>Grass</span>
-                    </button>
-                    <button class="stamp-grid-item">
-                        <img src={RubbleStamp} alt="" />
-                        <span>Rubble</span>
-                    </button>
-                    <button class="stamp-grid-item">
-                        <img src={TentStamp} alt="" />
-                        <span>Tent</span>
-                    </button>
-                    <button class="stamp-grid-item">
-                        <img src={TreeStamp} alt="" />
-                        <span>Tree</span>
-                    </button>
-                    <button class="stamp-grid-item">
-                        <img src={WaterStamp} alt="" />
-                        <span>Water</span>
-                    </button>
+                    {stampGridItems}
                 </div>
             </div>
         </div>

@@ -126,3 +126,7 @@
     border:3px solid black;
     cursor:pointer;
 }
+
+.stamp-grid-item img {
+    user-select: none;
+}
