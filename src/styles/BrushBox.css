@@ -1,5 +1,44 @@
+.tool-container {
+    display: flex;
+    position: relative;
+    width: fit-content;
+    border: black 2px solid;
+}
+
+.tool-sidebar {
+    background-color: #9e9ee2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-right: 2px solid black;
+}
+
+.tool-sidebar button {
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    padding-block: 5px;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    transition: transform 0.1s ease;
+}
+
+.tool-sidebar button img {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+}
+
+.tool-sidebar button span {
+    font-size: 12px;
+    margin-top: 3px;
+}
+
 .brush-box {
-    border: 2px black solid;
     text-align: center;
     position: relative;
     overflow: hidden;
