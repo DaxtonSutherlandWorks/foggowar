@@ -31,8 +31,8 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp)
             }
         }
 
-        //Checks if the stamp's potential area is clear
-        else if (isSquareCleared(solidContextRef.current, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height) && isSquareCleared(stampContextRef.current, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height))
+        //Draws the stamp
+        else
         {
             const stamp = {
                 id: crypto.randomUUID(), 
@@ -63,14 +63,6 @@ export function stampPointerMove(editorContextRef, guidePoint, stampImg, currSta
 
     if (guidePoint && !interactionStateRef.current.deletion && interactionStateRef.current.mode === "inactive")
     {
-        overlayContextRef.current.drawImage(stampImg, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height);
-        
-        if (!isSquareCleared(solidContextRef.current, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height) || !isSquareCleared(stampContextRef.current, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height))
-        {
-            overlayContextRef.current.globalCompositeOperation = "source-atop";
-            overlayContextRef.current.fillStyle = "red";
-            overlayContextRef.current.fillRect(guidePoint.x, guidePoint.y, currStamp.width, currStamp.height);
-        }
-        
+        overlayContextRef.current.drawImage(stampImg, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height);        
     }
 }
