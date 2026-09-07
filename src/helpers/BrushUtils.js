@@ -149,7 +149,7 @@ export const isSquareCleared = (context, guideX, guideY, squareWidth, squareHeig
 }
 
 /**
- * Calculates the nearest guide dot to the cursor.
+ * Calculates the nearest guide dot to the coords.
  */
 export const nearestGuidePoint = (x, y, tileSize, snapDistance) =>
 {
@@ -276,6 +276,17 @@ export const recomputeBorders = (editorContextRef, image, box) =>
     }
 
     return edges;
+}
+
+/**
+ * Checks if a given point falls within a boundingBox
+ */
+export const withinBox = (x, y, boundingBox) =>
+{
+    return (
+            boundingBox.x <= x && x <= boundingBox.x + boundingBox.width &&
+            boundingBox.y <= y && y <= boundingBox.y + boundingBox.height
+            );
 }
 
 /** *************************************************************************

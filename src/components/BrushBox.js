@@ -75,6 +75,11 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
         setActiveMenu("stamp")
     }
 
+    const handleSelectionChange = (event) => {
+        paintModeSetter("selection");
+        deleteModeSetter(false);
+    }
+
     const handleOverlayDeactivation = (event) => {
         paintToolSetter("line");
         paintModeSetter("inactive");
@@ -85,6 +90,9 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
     
 
     const handleDeleteChange = (event) => {
+        
+        paintModeSetter("inactive");
+
         //Gets id prefix
         let id = event.target.id.split("-")
 
@@ -162,8 +170,9 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
                         <h3>Stamp Library</h3>
                     </div>
                     <div style={{display: "flex", justifyContent: "center"}}>
-                        <button className="mode-button" id="draw-button" disabled={paintMode === "painting"} onClick={handleDeleteChange} style={{backgroundColor: deleteMode ? "#e6e6fa" : "#9e9ee2"}}>Add Stamp</button>
-                        <button className="mode-button" id="delete-button" disabled={paintMode === "painting"} onClick={handleDeleteChange} style={{backgroundColor: deleteMode ? "#9e9ee2" : "#e6e6fa"}}>Delete Stamp</button>
+                        <button className="mode-button" id="select-button" disabled={paintMode === "painting"} onClick={handleSelectionChange} style={{backgroundColor: paintMode === "selection" ? "#9e9ee2" : "#e6e6fa"}}>Select Stamp</button>
+                        <button className="mode-button" id="draw-button" disabled={paintMode === "painting"} onClick={handleDeleteChange} style={{backgroundColor: !deleteMode && paintMode !== "selection" ? "#9e9ee2" : "#e6e6fa"}}>Add Stamp</button>
+                        <button className="mode-button" id="delete-button" disabled={paintMode === "painting"} onClick={handleDeleteChange} style={{backgroundColor: deleteMode && paintMode !== "selection" ? "#9e9ee2" : "#e6e6fa"}}>Delete Stamp</button>
                     </div>
                     <div class="stamp-overlay-grid">
                         {stampGridItems}

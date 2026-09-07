@@ -2,17 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
 import { nearestGuidePoint, rebuildLineCanvas, rebuildSolidCanvas, rebuildStampCanvas } from "../helpers/BrushUtils";
-import UndoIcon from "../img/undoIcon.svg";
-import RedoIcon from "../img/redoIcon.svg";
-import SaveIcon from "../img/saveIcon.svg";
-import ImportIcon from "../img/importIcon.svg";
-import pngExportIcon from "../img/pngExportIcon.svg";
-import resizeIcon from "../img/resizeIcon.svg";
-import arrowUpIcon from "../img/arrowUpIcon.svg";
-import arrowDownIcon from "../img/arrowDownIcon.svg";
-import arrowLeftIcon from "../img/arrowLeftIcon.svg";
-import arrowRightIcon from "../img/arrowRightIcon.svg";
-import gridIcon from "../img/gridIcon.svg";
 import { createInitialMapState, updateDimensions } from "../helpers/MapState";
 import { applyViewportTransform, createInitialViewportState, getPointerData } from "../helpers/ViewportUtils";
 import { linePointerDown, linePointerMove } from "../helpers/LineUtils";
@@ -25,7 +14,7 @@ import { resizeCanvas, shiftGeometry, toolbarImport, toolbarPNGExport, toolbarRe
 import MapEditorToolBar from "./MapEditorToolBar";
 import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
-//TODO: Lock Zoom to not go out of bounds when zooming out.
+//TODO: Lock Zoom to not go out of bounds when zooming out for small maps.
 //TODO: There is a quirk where you can delete the map out from under lines and stamps.
 
 //Set up as class in order to access React.createRef
@@ -72,13 +61,22 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
     const editorContextRef = useRef(null);
     const commandManagerRef = useRef(null);
     const mapStateRef = useRef(createInitialMapState(dimensions, tileSize));
-    const interactionStateRef = useRef({mode: "painting", tool: paintMode, deletion: deleteMode, grabbing: false, middlePan: false});
+
+    /**Mode here tells the system what exactly is going on at the moment. Mode can equal:
+     * -inactive: default, nothing is actively being done.
+     * -painting: The user is currently drawing on the canvas
+     * -selection: stamp selection is active, disable guide dots/painting, enables stamp clicking
+     * -panning: the panning tool is active, used to make the cursor grabby and disable guidedots/painting.
+     * -selected: a stamp is selected and can be interacted with.
+    */
+    const interactionStateRef = useRef({mode: "painting", tool: paintMode, deletion: deleteMode, grabbing: false, middlePan: false, activeStampHandle: null});
     
     //Flag to keep toolbar from loading before dependancies exist
     const [editorContextReady, setEditorContextReady] = useState(false);
 
-    //Stamp Ref
+    //Stamp Refs
     const currStampRef = useRef(currStamp);
+    const selectedStampRef = useRef(null);
 
     /**
      * Initializes our editor context and creates a new command editor to support brush execution and undoing
@@ -318,7 +316,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
                 break;
 
             case "stamp":
-                stampPointerDown(editorContextRef, guidePoint, currStampRef.current);
+                stampPointerDown(editorContextRef, guidePoint, currStampRef.current, pointer.world, selectedStampRef);
                 break;
             
             default:
@@ -336,8 +334,11 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
 
         const guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistanceRef.current);
 
-        //Clears the canvas of previous guide dot and preview
-        overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
+        //Clears the canvas of previous guide dot and preview if not selecting objects
+        if (interactionStateRef.current.mode !== "selection" && interactionStateRef.current.mode !== "selected")
+        {
+            overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
+        }
 
         overlayContextRef.current.save();
 
@@ -360,7 +361,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
                 break;
 
             case "stamp":
-                stampPointerMove(editorContextRef, guidePoint, stampImageRef.current, currStamp);
+                stampPointerMove(editorContextRef, guidePoint, stampImageRef.current, currStamp, pointer.world, selectedStampRef);
                 break;        
 
             default:
@@ -369,15 +370,13 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
 
         overlayContextRef.current.restore();
 
-        //Draws active guide dot if not panning, clears old ones otherwise.
-        if (interactionStateRef.current.mode !== "panning")
+        //Draws active guide dot if not panning or selecting, handles panning  otherwise.
+        if (interactionStateRef.current.mode !== "panning" && interactionStateRef.current.mode !== "selected" && interactionStateRef.current.mode !== "selection")
         {
             drawHoverGuide(overlayContextRef, guidePoint, interactionStateRef.current.deletion, guideHoverRadiusRef);
         }
         else
         {
-            overlayContextRef.current.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
-
             if (interactionStateRef.current.grabbing)
             {
                 panPointerMove(editorContextRef, pointer);

@@ -7,6 +7,7 @@ import Tent from "../stamps/tentStamp.svg";
 import Tree from "../stamps/treeStamp.svg";
 import Water from "../stamps/waterStamp.svg";
 
+//TODO: automate this IMPORTANT COMPATABILITY NOTE: Stamp SVG must have [preserveAspectRatio="none"] added to their opening tag for stretching during a resize.
 export const StampDatabase = {
     
     tree: {
