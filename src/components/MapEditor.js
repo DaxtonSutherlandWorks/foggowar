@@ -8,14 +8,14 @@ import { linePointerDown, linePointerMove } from "../helpers/LineUtils";
 import { rectanglePointerDown, rectanglePointerMove } from "../helpers/RectUtils";
 import { circlePointerDown, circlePointerMove } from "../helpers/CircleUtils";
 import { polygonPointerDown, polygonPointerMove } from "../helpers/PolygonUtils";
-import { stampPointerDown, stampPointerMove } from "../helpers/StampUtils";
+import { stampPointerDown, stampPointerMove, stampPointerUp } from "../helpers/StampUtils";
 import { panPointerDown, panPointerLeave, panPointerMove, panPointerUp, zoomPointerWheel } from "../helpers/PanZoomUtils";
 import { resizeCanvas, shiftGeometry, toolbarImport, toolbarPNGExport, toolbarRedo, toolbarSave, toolbarUndo } from "../helpers/ToolbarUtils";
 import MapEditorToolBar from "./MapEditorToolBar";
 import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
 //TODO: Lock Zoom to not go out of bounds when zooming out for small maps.
-//TODO: There is a quirk where you can delete the map out from under lines and stamps.
+//TODO: There is a quirk where you can release a stamp edit with no guide dot in range...
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaintMode, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -68,6 +68,8 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
      * -selection: stamp selection is active, disable guide dots/painting, enables stamp clicking
      * -panning: the panning tool is active, used to make the cursor grabby and disable guidedots/painting.
      * -selected: a stamp is selected and can be interacted with.
+     * -resizing-stamp: a stamp handle is being dragged to resize.
+     * -moving-stamp:a stamp is being dragged to move.
     */
     const interactionStateRef = useRef({mode: "painting", tool: paintMode, deletion: deleteMode, grabbing: false, middlePan: false, activeStampHandle: null});
     
@@ -388,10 +390,26 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
     /**
      * Viewport MouseUp Listener
      */
+    //TODO: Add stamp functionality for moving stamps, break off into own helper files.
     const onPointerUp = (event) =>
     {
-        panPointerUp(editorContextRef, event);
-        overlayCanvasRef.current.releasePointerCapture(event.pointerId);
+        const pointer = getPointerData(event, viewportRef.current, viewportStateRef.current);
+
+        const guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistanceRef.current);
+
+        //Stamp editing release
+        if ((interactionStateRef.current.mode === "moving-stamp" || interactionStateRef.current.mode === "resizing-stamp") && guidePoint)
+        {
+            stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
+        }
+
+        //Panning release
+        if (interactionStateRef.current.grabbing)
+        {
+            panPointerUp(editorContextRef, event);
+            overlayCanvasRef.current.releasePointerCapture(event.pointerId);
+        }
+        
     }
 
     /**

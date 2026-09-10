@@ -3,12 +3,15 @@ import { DeleteStampCommand } from "../classes/DeleteStampCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
 import { createBoundingBox, isSquareCleared, rebuildStampCanvas, withinBox } from "./BrushUtils";
 
+//TODO: Nasty bug where changing the selected stamp during selection breaks previews, need to find a better way to get the image
+//TODO: Stamp Editing is divorced from the command stack and gets w e i r d with undo/redo. Merge when basic functionality and cleanup is done.
+
 /**
  * Executes stamp draw/deletion clicks
  */
 export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldPointer, selectedStampRef)
 {
-    const { interactionStateRef, mapStateRef, commandManagerRef, solidContextRef, stampContextRef, overlayContextRef} = editorContextRef.current;
+    const { interactionStateRef, mapStateRef, commandManagerRef, stampContextRef, overlayContextRef} = editorContextRef.current;
 
     //Tries to select a stamp for interaction.
     if (interactionStateRef.current.mode === "selection")
@@ -50,7 +53,8 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldP
         //Moving - Handles the stamp being clicked.
         else if (withinBox(worldPointer.x, worldPointer.y, boundingBox))
         {
-            //TODO
+            interactionStateRef.current.mode = "moving-stamp";
+            stampContextRef.current.clearRect(stamp.x, stamp.y, stamp.width, stamp.height);
         }
 
         //Deselction - Handles clicks that land outside of the stamps.
@@ -64,37 +68,7 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldP
         }
     }
 
-    else if (interactionStateRef.current.mode === "resizing-stamp")
-    {
-        let selectedStamp = selectedStampRef.current;
-        const activeHandle = interactionStateRef.current.activeStampHandle;
-
-        const resizeDimensions = calculateResizeDimensions(selectedStamp, guidePoint, activeHandle);
-
-        //Replace the old stamp with the new information
-        const oldStamp = mapStateRef.current.stamps.find(
-            oldStamp => oldStamp.id === selectedStamp.id
-        )
-
-        //TODO: Add handling for negative values to just bump x and y
-        if (oldStamp)
-        {
-            oldStamp.x = resizeDimensions.x;
-            oldStamp.y = resizeDimensions.y;
-            oldStamp.width = resizeDimensions.width;
-            oldStamp.height = resizeDimensions.height;
-        }
-
-        //Rebuild Stamp Canvas
-        //TODO: Optimize to only redraw within stamp area
-        rebuildStampCanvas(editorContextRef.current);
-
-        interactionStateRef.current.mode = "selection";
-        overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
-    }
-
-    //TODO: This can be made more efficient by merging with selection funcitonality once complete
-    else if(guidePoint)
+    else if(guidePoint && interactionStateRef.current.mode === "inactive")
     {
         //Stamp Deletion
         if (interactionStateRef.current.deletion)
@@ -144,7 +118,7 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldP
  */
 export function stampPointerMove(editorContextRef, guidePoint, stampImg, currStamp, worldPointer, selectedStampRef)
 {
-    const { interactionStateRef, overlayContextRef, solidContextRef, stampContextRef, viewportRef, overlayCanvasRef} = editorContextRef.current;
+    const { interactionStateRef, overlayContextRef, viewportRef} = editorContextRef.current;
 
     //Handles mouse movement in selection mode
     if (interactionStateRef.current.mode === "selected")
@@ -174,6 +148,10 @@ export function stampPointerMove(editorContextRef, guidePoint, stampImg, currSta
     {
         const resizeDimensions = calculateResizeDimensions(selectedStampRef.current, worldPointer, interactionStateRef.current.activeStampHandle);
 
+        overlayContextRef.current.save();
+
+        overlayContextRef.current.globalAlpha = "0.6";
+        
         //Resize preview.
         overlayContextRef.current.drawImage(
             stampImg,
@@ -182,12 +160,99 @@ export function stampPointerMove(editorContextRef, guidePoint, stampImg, currSta
             resizeDimensions.width,
             resizeDimensions.height
         );
+
+        overlayContextRef.current.restore();
+    }
+
+    else if (interactionStateRef.current.mode === "moving-stamp")
+    {
+        const movedStamp = selectedStampRef.current;
+
+        overlayContextRef.current.save();
+
+        overlayContextRef.current.globalAlpha = "0.6";
+
+        //Move preview.
+        overlayContextRef.current.drawImage(
+            stampImg,
+            worldPointer.x,
+            worldPointer.y,
+            movedStamp.width,
+            movedStamp.height
+        );
+
+        overlayContextRef.current.restore();
     }
 
     //Handles mouse movement in adding mode
     else if (guidePoint && !interactionStateRef.current.deletion && interactionStateRef.current.mode === "inactive")
     {
         overlayContextRef.current.drawImage(stampImg, guidePoint.x, guidePoint.y, currStamp.width, currStamp.height);        
+    }
+}
+
+/**
+ * Handles the user releasing LMB during stamp editing.
+ */
+export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
+{
+    const { interactionStateRef, mapStateRef, overlayContextRef, viewportRef} = editorContextRef.current;
+
+    //Resize release
+    if (interactionStateRef.current.mode === "resizing-stamp")
+    {
+        let selectedStamp = selectedStampRef.current;
+        const activeHandle = interactionStateRef.current.activeStampHandle;
+
+        const resizeDimensions = calculateResizeDimensions(selectedStamp, guidePoint, activeHandle);
+
+        //Replace the old stamp with the new information
+        const oldStamp = mapStateRef.current.stamps.find(
+            oldStamp => oldStamp.id === selectedStamp.id
+        )
+
+        //TODO: Add handling for negative values to just bump x and y
+        if (oldStamp && guidePoint)
+        {
+            oldStamp.x = resizeDimensions.x;
+            oldStamp.y = resizeDimensions.y;
+            oldStamp.width = resizeDimensions.width;
+            oldStamp.height = resizeDimensions.height;
+
+            //Rebuild Stamp Canvas
+            //TODO: Optimize to only redraw within stamp area
+            rebuildStampCanvas(editorContextRef.current);
+
+            interactionStateRef.current.mode = "selection";
+            viewportRef.current.style.cursor = "default";
+            overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
+        }
+    }
+
+    //Move release
+    else if (interactionStateRef.current.mode === "moving-stamp")
+    {
+        let selectedStamp = selectedStampRef.current;
+
+        //Replace the old stamp with the new information
+        const oldStamp = mapStateRef.current.stamps.find(
+            oldStamp => oldStamp.id === selectedStamp.id
+        )
+
+        //Only releases in range of guide point
+        if (oldStamp && guidePoint)
+        {
+            oldStamp.x = guidePoint.x;
+            oldStamp.y = guidePoint.y;
+
+            //Rebuild Stamp Canvas
+            //TODO: Optimize to only redraw within stamp area
+            rebuildStampCanvas(editorContextRef.current);
+
+            interactionStateRef.current.mode = "selection";
+            viewportRef.current.style.cursor = "default";
+            overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
+        }
     }
 }
 
