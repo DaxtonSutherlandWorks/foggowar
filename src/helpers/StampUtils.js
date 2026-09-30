@@ -211,13 +211,45 @@ export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
             oldStamp => oldStamp.id === selectedStamp.id
         )
 
-        //TODO: Add handling for negative values to just bump x and y
+        //During a resize, any resizing that "flips" a handle past another is treated as just moving the stamp.
         if (oldStamp && guidePoint)
         {
-            oldStamp.x = resizeDimensions.x;
-            oldStamp.y = resizeDimensions.y;
-            oldStamp.width = resizeDimensions.width;
-            oldStamp.height = resizeDimensions.height;
+
+            //Handles a backwards diagonal resize
+            if (resizeDimensions.width < 0 && resizeDimensions.height < 0)
+            {
+                oldStamp.x = resizeDimensions.x + resizeDimensions.width;
+                oldStamp.y = resizeDimensions.y + resizeDimensions.height;
+                oldStamp.width = Math.abs(resizeDimensions.width);
+                oldStamp.height = Math.abs(resizeDimensions.height);
+            }
+
+            //Handles a backwards horizontal resize
+            else if (resizeDimensions.width < 0)
+            {
+                oldStamp.x = resizeDimensions.x + resizeDimensions.width;
+                oldStamp.y = resizeDimensions.y;
+                oldStamp.width = Math.abs(resizeDimensions.width);
+                oldStamp.height = resizeDimensions.height;
+            }
+
+            //Handles a backwards verticle resize
+            else if (resizeDimensions.height < 0)
+            {
+                oldStamp.x = resizeDimensions.x;
+                oldStamp.y = resizeDimensions.y + resizeDimensions.height;
+                oldStamp.width = resizeDimensions.width;
+                oldStamp.height = Math.abs(resizeDimensions.height);
+            }
+
+            //Handles a regular resize
+            else
+            {
+                oldStamp.x = resizeDimensions.x;
+                oldStamp.y = resizeDimensions.y;
+                oldStamp.width = resizeDimensions.width;
+                oldStamp.height = resizeDimensions.height;
+            }
 
             //Rebuild Stamp Canvas
             //TODO: Optimize to only redraw within stamp area

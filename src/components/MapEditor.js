@@ -15,7 +15,8 @@ import MapEditorToolBar from "./MapEditorToolBar";
 import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
 //TODO: Lock Zoom to not go out of bounds when zooming out for small maps.
-//TODO: There is a quirk where you can release a stamp edit with no guide dot in range...
+//TODO: Stamp previews remain when leaving the canvas.
+//TODO: Stamp handles have too small collision
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaintMode, deleteMode, currStamp, stampSize, tileSize}) => {
@@ -390,7 +391,6 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
     /**
      * Viewport MouseUp Listener
      */
-    //TODO: Add stamp functionality for moving stamps, break off into own helper files.
     const onPointerUp = (event) =>
     {
         const pointer = getPointerData(event, viewportRef.current, viewportStateRef.current);
