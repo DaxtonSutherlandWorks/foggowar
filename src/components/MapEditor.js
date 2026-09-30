@@ -173,8 +173,9 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
        overlayCanvasRef.current.removeEventListener('pointerup', onPointerUp);
        overlayCanvasRef.current.addEventListener('pointerup', onPointerUp);
 
-       overlayCanvasRef.current.removeEventListener('pointercancel', onPointerLeave);
-       overlayCanvasRef.current.addEventListener('pointercancel', onPointerLeave);
+       //TODO: This doesn't do anything. For one, it should be pointer out. For two, moving over kids may trigger this
+       viewportRef.current.removeEventListener('pointerout', onPointerLeave);
+       viewportRef.current.addEventListener('pointerout', onPointerLeave);
 
        viewportRef.current.removeEventListener('contextmenu', blockContextMenu);
        viewportRef.current.addEventListener('contextmenu', blockContextMenu);
@@ -285,9 +286,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
 
         //Break out to handle panning
         if (interactionStateRef.current.mode === "panning")
-        {
-            overlayCanvasRef.current.setPointerCapture(event.pointerId);
-            
+        {            
             panPointerDown(editorContextRef, pointer);
             
             //Prevents text selection and dragging quirks
