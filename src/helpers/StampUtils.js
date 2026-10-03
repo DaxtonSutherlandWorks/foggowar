@@ -3,16 +3,15 @@ import { DrawStampCommand } from "../classes/DrawStampCommand";
 import { createBoundingBox, withinBox } from "./BrushUtils";
 import { MoveStampCommand } from "../classes/MoveStampCommand";
 import { ResizeStampCommand } from "../classes/ResizeStampCommand";
+import { StampDatabase } from "../stamps/StampDatabase";
 
-//TODO: Nasty bug where changing the selected stamp during selection breaks previews, need to find a better way to get the image
-//There is an issue moving stamps when multiple types exist too, likely downstream of the preview issue.
 //TODO: When moving overlapped stamps, all stamps other than the moved stamp get temporarily partially cleared.
 //TODO: Resizing stamps deletes overlapped stamp graphics temporarily.
 
 /**
  * Executes stamp draw/deletion clicks
  */
-export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldPointer, selectedStampRef)
+export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldPointer, selectedStampRef, setStampSelected, setCurrStamp)
 {
     const { interactionStateRef, mapStateRef, commandManagerRef, stampContextRef, overlayContextRef} = editorContextRef.current;
 
@@ -31,6 +30,8 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldP
 
                 interactionStateRef.current.mode = "selected";
                 selectedStampRef.current = stamp;
+                setStampSelected(true);
+                setCurrStamp(StampDatabase[stamp.type]);
             }
             
         }
@@ -65,6 +66,7 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldP
         {
             interactionStateRef.current.mode = "selection";
             selectedStampRef.current = null;
+            setStampSelected(false);
 
             //Clears selection box
             overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
@@ -98,7 +100,8 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldP
         {
             const stamp = {
                 id: crypto.randomUUID(), 
-                imagePath: currStamp.image, 
+                imagePath: currStamp.image,
+                type: currStamp.id,
                 x: guidePoint.x, 
                 y: guidePoint.y, 
                 width: currStamp.width, 
@@ -197,7 +200,7 @@ export function stampPointerMove(editorContextRef, guidePoint, stampImg, currSta
 /**
  * Handles the user releasing LMB during stamp editing.
  */
-export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
+export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef, setStampSelected)
 {
     const { interactionStateRef, mapStateRef, commandManagerRef, overlayContextRef, viewportRef} = editorContextRef.current;
 
@@ -224,13 +227,10 @@ export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
                     {x: oldStamp.x, y: oldStamp.y, width: oldStamp.width, height: oldStamp.height})
             );
 
-            //Rebuild Stamp Canvas
-            //TODO: Optimize to only redraw within stamp area
-            //rebuildStampCanvas(editorContextRef.current);
-
             interactionStateRef.current.mode = "selection";
             viewportRef.current.style.cursor = "default";
             overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
+            setStampSelected(false);
         }
     }
 
@@ -256,6 +256,7 @@ export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
             interactionStateRef.current.mode = "selection";
             viewportRef.current.style.cursor = "default";
             overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
+            setStampSelected(false);
         }
     }
 }

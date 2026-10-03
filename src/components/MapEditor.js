@@ -19,7 +19,7 @@ import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtil
 //TODO: Stamp handles have too small collision
 
 //Set up as class in order to access React.createRef
-const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaintMode, deleteMode, currStamp, stampSize, tileSize}) => {
+const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaintMode, deleteMode, currStamp, setCurrStamp, stampSize, tileSize, setStampSelected}) => {
 
     //Canvas Refs
     const lineCanvasRef = useRef(null);
@@ -318,7 +318,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
                 break;
 
             case "stamp":
-                stampPointerDown(editorContextRef, guidePoint, currStampRef.current, pointer.world, selectedStampRef);
+                stampPointerDown(editorContextRef, guidePoint, currStampRef.current, pointer.world, selectedStampRef, setStampSelected, setCurrStamp);
                 break;
             
             default:
@@ -399,7 +399,7 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
         //Stamp editing release
         if ((interactionStateRef.current.mode === "moving-stamp" || interactionStateRef.current.mode === "resizing-stamp") && guidePoint)
         {
-            stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
+            stampPointerUp(editorContextRef, guidePoint, selectedStampRef, setStampSelected)
         }
 
         //Panning release

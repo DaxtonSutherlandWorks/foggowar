@@ -7,10 +7,10 @@ import PolygonIcon from "../img/polygonIcon.svg"
 import StampIcon from "../img/stampIcon.svg"
 import PanIcon from "../img/panIcon.svg"
 import { getAllStamps, getStamp } from "../stamps/StampDatabase"
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
 
-const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, deleteMode, deleteModeSetter, loadStamp, currStamp, setCurrStamp}) => {
+const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, deleteMode, deleteModeSetter, loadStamp, currStamp, setCurrStamp, stampSelected}) => {
     
     const [activeMenu, setActiveMenu] = useState("brush");
 
@@ -24,7 +24,7 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
     }
 
     const stampGridItems = stamps.map(stamp => 
-        <button id={stamp.id + "-selection-button"} class="stamp-grid-item" onClick={handleStampSelectionClick} style={{backgroundColor: currStamp.name === stamp.name ? "#9e9ee2" : "#e6e6fa"}}>
+        <button id={stamp.id + "-selection-button"} class="stamp-grid-item" onClick={handleStampSelectionClick} disabled={stampSelected} style={{backgroundColor: currStamp.name === stamp.name ? "#9e9ee2" : "#e6e6fa"}}>
             <img src={stamp.image} alt="" />
             <span>{stamp.name}</span>
         </button>
