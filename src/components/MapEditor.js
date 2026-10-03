@@ -15,7 +15,7 @@ import MapEditorToolBar from "./MapEditorToolBar";
 import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
 //TODO: Lock Zoom to not go out of bounds when zooming out for small maps.
-//TODO: Stamp previews remain when leaving the canvas.
+//TODO: Stamp previews remain when leaving the canvas. -fix: clear overlay on pointerout
 //TODO: Stamp handles have too small collision
 
 //Set up as class in order to access React.createRef

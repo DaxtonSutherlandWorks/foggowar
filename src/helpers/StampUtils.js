@@ -1,10 +1,13 @@
-import { useState } from "react";
 import { DeleteStampCommand } from "../classes/DeleteStampCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
-import { createBoundingBox, isSquareCleared, rebuildStampCanvas, withinBox } from "./BrushUtils";
+import { createBoundingBox, withinBox } from "./BrushUtils";
+import { MoveStampCommand } from "../classes/MoveStampCommand";
+import { ResizeStampCommand } from "../classes/ResizeStampCommand";
 
 //TODO: Nasty bug where changing the selected stamp during selection breaks previews, need to find a better way to get the image
-//TODO: Stamp Editing is divorced from the command stack and gets w e i r d with undo/redo. Merge when basic functionality and cleanup is done.
+//There is an issue moving stamps when multiple types exist too, likely downstream of the preview issue.
+//TODO: When moving overlapped stamps, all stamps other than the moved stamp get temporarily partially cleared.
+//TODO: Resizing stamps deletes overlapped stamp graphics temporarily.
 
 /**
  * Executes stamp draw/deletion clicks
@@ -196,7 +199,7 @@ export function stampPointerMove(editorContextRef, guidePoint, stampImg, currSta
  */
 export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
 {
-    const { interactionStateRef, mapStateRef, overlayContextRef, viewportRef} = editorContextRef.current;
+    const { interactionStateRef, mapStateRef, commandManagerRef, overlayContextRef, viewportRef} = editorContextRef.current;
 
     //Resize release
     if (interactionStateRef.current.mode === "resizing-stamp")
@@ -206,7 +209,7 @@ export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
 
         const resizeDimensions = calculateResizeDimensions(selectedStamp, guidePoint, activeHandle);
 
-        //Replace the old stamp with the new information
+        //Finds the stamp from the list of existing stamps
         const oldStamp = mapStateRef.current.stamps.find(
             oldStamp => oldStamp.id === selectedStamp.id
         )
@@ -214,46 +217,16 @@ export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
         //During a resize, any resizing that "flips" a handle past another is treated as just moving the stamp.
         if (oldStamp && guidePoint)
         {
-
-            //Handles a backwards diagonal resize
-            if (resizeDimensions.width < 0 && resizeDimensions.height < 0)
-            {
-                oldStamp.x = resizeDimensions.x + resizeDimensions.width;
-                oldStamp.y = resizeDimensions.y + resizeDimensions.height;
-                oldStamp.width = Math.abs(resizeDimensions.width);
-                oldStamp.height = Math.abs(resizeDimensions.height);
-            }
-
-            //Handles a backwards horizontal resize
-            else if (resizeDimensions.width < 0)
-            {
-                oldStamp.x = resizeDimensions.x + resizeDimensions.width;
-                oldStamp.y = resizeDimensions.y;
-                oldStamp.width = Math.abs(resizeDimensions.width);
-                oldStamp.height = resizeDimensions.height;
-            }
-
-            //Handles a backwards verticle resize
-            else if (resizeDimensions.height < 0)
-            {
-                oldStamp.x = resizeDimensions.x;
-                oldStamp.y = resizeDimensions.y + resizeDimensions.height;
-                oldStamp.width = resizeDimensions.width;
-                oldStamp.height = Math.abs(resizeDimensions.height);
-            }
-
-            //Handles a regular resize
-            else
-            {
-                oldStamp.x = resizeDimensions.x;
-                oldStamp.y = resizeDimensions.y;
-                oldStamp.width = resizeDimensions.width;
-                oldStamp.height = resizeDimensions.height;
-            }
+            //Replace the old stamp with the new information
+            commandManagerRef.current.execute(
+                new ResizeStampCommand(oldStamp, 
+                    {x: resizeDimensions.x, y: resizeDimensions.y, width: resizeDimensions.width, height: resizeDimensions.height},
+                    {x: oldStamp.x, y: oldStamp.y, width: oldStamp.width, height: oldStamp.height})
+            );
 
             //Rebuild Stamp Canvas
             //TODO: Optimize to only redraw within stamp area
-            rebuildStampCanvas(editorContextRef.current);
+            //rebuildStampCanvas(editorContextRef.current);
 
             interactionStateRef.current.mode = "selection";
             viewportRef.current.style.cursor = "default";
@@ -266,7 +239,7 @@ export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
     {
         let selectedStamp = selectedStampRef.current;
 
-        //Replace the old stamp with the new information
+        //Finds the stamp from the list of existing stamps
         const oldStamp = mapStateRef.current.stamps.find(
             oldStamp => oldStamp.id === selectedStamp.id
         )
@@ -274,17 +247,58 @@ export function stampPointerUp(editorContextRef, guidePoint, selectedStampRef)
         //Only releases in range of guide point
         if (oldStamp && guidePoint)
         {
-            oldStamp.x = guidePoint.x;
-            oldStamp.y = guidePoint.y;
+            //Replace the old stamp with the new information
+            commandManagerRef.current.execute(
+                new MoveStampCommand(oldStamp, {newX: guidePoint.x, newY: guidePoint.y}, {oldX: oldStamp.x, oldY: oldStamp.y})
+            );
 
-            //Rebuild Stamp Canvas
-            //TODO: Optimize to only redraw within stamp area
-            rebuildStampCanvas(editorContextRef.current);
-
+            //Restore UI to selection mode
             interactionStateRef.current.mode = "selection";
             viewportRef.current.style.cursor = "default";
             overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
         }
+    }
+}
+
+/**
+ * 
+ */
+export function setStampResizeDimensions(oldStamp, resizeDimensions)
+{
+    //Handles a backwards diagonal resize
+    if (resizeDimensions.width < 0 && resizeDimensions.height < 0)
+    {
+        oldStamp.x = resizeDimensions.x + resizeDimensions.width;
+        oldStamp.y = resizeDimensions.y + resizeDimensions.height;
+        oldStamp.width = Math.abs(resizeDimensions.width);
+        oldStamp.height = Math.abs(resizeDimensions.height);
+    }
+
+    //Handles a backwards horizontal resize
+    else if (resizeDimensions.width < 0)
+    {
+        oldStamp.x = resizeDimensions.x + resizeDimensions.width;
+        oldStamp.y = resizeDimensions.y;
+        oldStamp.width = Math.abs(resizeDimensions.width);
+        oldStamp.height = resizeDimensions.height;
+    }
+
+    //Handles a backwards verticle resize
+    else if (resizeDimensions.height < 0)
+    {
+        oldStamp.x = resizeDimensions.x;
+        oldStamp.y = resizeDimensions.y + resizeDimensions.height;
+        oldStamp.width = resizeDimensions.width;
+        oldStamp.height = Math.abs(resizeDimensions.height);
+    }
+
+    //Handles a regular resize
+    else
+    {
+        oldStamp.x = resizeDimensions.x;
+        oldStamp.y = resizeDimensions.y;
+        oldStamp.width = resizeDimensions.width;
+        oldStamp.height = resizeDimensions.height;
     }
 }
 
