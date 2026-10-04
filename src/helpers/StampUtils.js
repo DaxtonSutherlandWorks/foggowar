@@ -4,6 +4,7 @@ import { createBoundingBox, rebuildSelectedStampArea, withinBox } from "./BrushU
 import { MoveStampCommand } from "../classes/MoveStampCommand";
 import { ResizeStampCommand } from "../classes/ResizeStampCommand";
 import { StampDatabase } from "../stamps/StampDatabase";
+import { hover } from "@testing-library/user-event/dist/hover";
 
 /**
  * Executes stamp draw/deletion clicks
@@ -134,6 +135,7 @@ export function stampPointerMove(editorContextRef, guidePoint, stampImg, currSta
         if (stamp)
         {
             const boundingBox = createBoundingBox({type: "rectangle", x: stamp.x, y: stamp.y, width: stamp.width, height: stamp.height});
+            const hoveredHandle = getHoveredHandle(worldPointer.x, worldPointer.y, boundingBox);
 
             //Sets the cursor if over the interacting stamp
             if (withinBox(worldPointer.x, worldPointer.y, boundingBox))
@@ -141,8 +143,35 @@ export function stampPointerMove(editorContextRef, guidePoint, stampImg, currSta
                 viewportRef.current.style.cursor = "grab";
             }
 
-            //Reverts the cursor if grabbing and not over the stamp
-            else if (viewportRef.current.style.cursor === "grab")
+            //Sets the cursor if over a handle
+            else if (hoveredHandle !== null)
+            {
+                switch (hoveredHandle)
+                {
+                    case "left":
+                    case "right":
+                        viewportRef.current.style.cursor = "e-resize";
+                        break;
+
+                    case "top":
+                    case "bottom":
+                        viewportRef.current.style.cursor = "n-resize";
+                        break;
+
+                    case "top-left":
+                    case "bottom-right":
+                        viewportRef.current.style.cursor = "nw-resize";
+                        break;
+
+                    case "top-right":
+                    case "bottom-left":
+                        viewportRef.current.style.cursor = "ne-resize";
+                        break;
+                }
+            }
+
+            //Reverts the cursor if not over the stamp
+            else
             {
                 viewportRef.current.style.cursor = "default";
             }
@@ -172,6 +201,8 @@ export function stampPointerMove(editorContextRef, guidePoint, stampImg, currSta
 
     else if (interactionStateRef.current.mode === "moving-stamp")
     {
+        viewportRef.current.style.cursor = "grabbing";
+
         const movedStamp = selectedStampRef.current;
 
         overlayContextRef.current.save();

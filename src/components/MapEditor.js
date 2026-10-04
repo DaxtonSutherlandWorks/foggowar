@@ -15,7 +15,7 @@ import MapEditorToolBar from "./MapEditorToolBar";
 import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
 //TODO: Lock Zoom to not go out of bounds when zooming out for small maps.
-//TODO: Stamp handles have too small collision
+//TODO: Add functionality to cancel drawing with a right click.
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaintMode, deleteMode, currStamp, setCurrStamp, stampSize, tileSize, setStampSelected}) => {
