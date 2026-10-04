@@ -15,7 +15,6 @@ import MapEditorToolBar from "./MapEditorToolBar";
 import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
 //TODO: Lock Zoom to not go out of bounds when zooming out for small maps.
-//TODO: Add functionality to cancel drawing with a right click.
 
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaintMode, deleteMode, currStamp, setCurrStamp, stampSize, tileSize, setStampSelected}) => {
@@ -269,9 +268,33 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
 
         event.preventDefault();
 
-        //Blocks right clicks and allows for panning with middle mouse
+        //Makes right clicks cancel the current action and allows for panning with middle mouse
         if (event.button === 2)
         {
+            //Snaps the interaction state back to selection if in use
+            if (interactionStateRef.current.mode === "selection" || 
+                interactionStateRef.current.mode === "selected" || 
+                interactionStateRef.current.mode === "resizing-stamp" || 
+                interactionStateRef.current.mode === "moving-stamp")
+            {
+                interactionStateRef.current.mode = "selection";
+            }
+
+            //Clears data for any in-progress polygons
+            else if (interactionStateRef.current.tool === "polygon")
+            {
+                paintPointsRef.current = [];
+                interactionStateRef.current.mode = "inactive";
+            }
+
+            else
+            {
+                interactionStateRef.current.mode = "inactive";
+            }
+
+            viewportRef.current.style.cursor = "default";
+            overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
+            
             return;
         }
         else if (event.button === 1 && interactionStateRef.current.mode !== "panning")
