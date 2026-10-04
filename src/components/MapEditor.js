@@ -14,8 +14,6 @@ import { resizeCanvas, shiftGeometry, toolbarImport, toolbarPNGExport, toolbarRe
 import MapEditorToolBar from "./MapEditorToolBar";
 import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
-//TODO: Lock Zoom to not go out of bounds when zooming out for small maps.
-
 //Set up as class in order to access React.createRef
 const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaintMode, deleteMode, currStamp, setCurrStamp, stampSize, tileSize, setStampSelected}) => {
 

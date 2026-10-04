@@ -9,7 +9,7 @@ import PanIcon from "../img/panIcon.svg"
 import { getAllStamps, getStamp } from "../stamps/StampDatabase"
 import { useState } from "react"
 
-
+//TODO: The interface is not responsively sized now... fix me!
 const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, deleteMode, deleteModeSetter, loadStamp, currStamp, setCurrStamp, stampSelected}) => {
     
     const [activeMenu, setActiveMenu] = useState("brush");

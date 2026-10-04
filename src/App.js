@@ -14,7 +14,7 @@ function App() {
   const [currStamp, setCurrStamp] = useState(StampDatabase["tree"]);
   const [paintMode, paintModeSetter] = useState("inactive");
   const [deleteMode, setDeleteMode] = useState(false);
-  const [dimensions, setDimensions] = useState([100, 100]);
+  const [dimensions, setDimensions] = useState([100,100]);
   const [stampSelected, setStampSelected] = useState(false);
 
   return (

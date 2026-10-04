@@ -78,22 +78,25 @@ export function panPointerUp(editorContextRef, event)
 export function zoomPointerWheel(editorContextRef, event)
 {
     const { viewportStateRef, viewportRef, canvasStageRef, gridCanvasRef} = editorContextRef.current;
-    //Zoom math
 
     //Translate mouse wheel delta (scroll ammount with direction shown by sign) into a +/-10% factor to use for scaling
     const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;
 
     const oldZoom = viewportStateRef.current.zoom;
 
+    // Calculate the minimum zoom required to fill the viewport
+    const minZoomX = viewportRef.current.clientWidth / gridCanvasRef.current.width;
+    const minZoomY = viewportRef.current.clientHeight / gridCanvasRef.current.height;
+
+    const minZoom = Math.max(minZoomX, minZoomY);
+
+    // Calculate the new zoom level
     let newZoom = oldZoom * zoomFactor;
 
-    //Locks zoom to set max/min
+    // Clamp zoom between the calculated minimum and configured maximum
     newZoom = Math.max(
-        viewportStateRef.current.minZoom,
-        Math.min(
-            viewportStateRef.current.maxZoom,
-            newZoom
-        )
+        minZoom,
+        Math.min(viewportStateRef.current.maxZoom, newZoom)
     );
 
     const pointer = getPointerData(event, viewportRef.current, viewportStateRef.current);

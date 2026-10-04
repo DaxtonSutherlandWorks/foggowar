@@ -12,7 +12,7 @@ import arrowRightIcon from "../img/arrowRightIcon.svg";
 import gridIcon from "../img/gridIcon.svg";
 import { useEffect, useRef, useState } from "react";
 import { updateDimensions } from "../helpers/MapState";
-import { applyViewportTransform } from "../helpers/ViewportUtils";
+import { applyViewportTransform, clampCamera } from "../helpers/ViewportUtils";
 import { rebuildLineCanvas, rebuildSolidCanvas, rebuildStampCanvas } from "../helpers/BrushUtils";
 import { drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
@@ -36,6 +36,7 @@ const MapEditorToolBar = ({editorContextRef}) => {
     const lineContextRef = editorContextRef.current.lineContextRef;
     const stampContextRef = editorContextRef.current.stampContextRef;
 
+    const viewportRef = editorContextRef.current.viewportRef;
     const viewportStateRef = editorContextRef.current.viewportStateRef;
     const canvasStageRef = editorContextRef.current.canvasStageRef;
 
@@ -128,6 +129,32 @@ const MapEditorToolBar = ({editorContextRef}) => {
         resizeCanvas(overlayCanvasRef.current, width, height);
         resizeCanvas(solidCanvasRef.current, width, height);
         resizeCanvas(dotCanvasRef.current, width, height);
+
+        // Recalculate camera constraints after changing world dimensions
+        const viewportWidth = viewportRef.current.clientWidth;
+        const viewportHeight = viewportRef.current.clientHeight;
+
+        const minZoomX = viewportWidth / width;
+        const minZoomY = viewportHeight / height;
+
+        const minZoom = Math.max(minZoomX, minZoomY);
+
+        viewportStateRef.current.zoom = Math.max(
+            minZoom,
+            Math.min(
+                viewportStateRef.current.maxZoom,
+                viewportStateRef.current.zoom
+            )
+        );
+
+        // Re-clamp camera using the new world dimensions
+        clampCamera(
+            viewportStateRef.current,
+            viewportWidth,
+            viewportHeight,
+            width,
+            height
+        );
 
         //Reset render state
         resizeRebuild()

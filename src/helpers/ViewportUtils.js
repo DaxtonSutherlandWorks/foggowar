@@ -44,18 +44,30 @@ export function screenToWorld(screenX, screenY, viewportState)
 }
 
 /**
- * Clamps camera positioning to avoid out of bounds displays
+ * Clamps camera positioning to avoid out of bounds displays.
  */
 export function clampCamera(viewportState, viewportWidth, viewportHeight, worldWidth, worldHeight)
 {
+    // Calculate the world's dimensions after applying the current zoom
     const scaledWorldWidth = worldWidth * viewportState.zoom;
     const scaledWorldHeight = worldHeight * viewportState.zoom;
 
-    const minCameraX = Math.min(0,viewportWidth - scaledWorldWidth);
+    // Calculate the minimum camera position based on the world's
+    // scaled dimensions and the viewport dimensions.
+    const minCameraX = Math.min(0, viewportWidth - scaledWorldWidth);
     const minCameraY = Math.min(0, viewportHeight - scaledWorldHeight);
 
-    viewportState.cameraX = Math.max(minCameraX, Math.min(0, viewportState.cameraX));
-    viewportState.cameraY = Math.max(minCameraY, Math.min(0, viewportState.cameraY));
+    // Clamp horizontal camera position between the left and right boundaries
+    viewportState.cameraX = Math.max(
+        minCameraX,
+        Math.min(0, viewportState.cameraX)
+    );
+
+    // Clamp vertical camera position between the top and bottom boundaries
+    viewportState.cameraY = Math.max(
+        minCameraY,
+        Math.min(0, viewportState.cameraY)
+    );
 }
 
 /**
