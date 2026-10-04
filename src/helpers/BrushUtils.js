@@ -5,6 +5,8 @@
  * 
  * **************************************************************************/
 
+import { stampsIntersect } from "./StampUtils";
+
 /**
  * Creates a bounding box for a given shape object
  */
@@ -557,6 +559,32 @@ export const drawLines = (lines, lineContext) =>
     }
 
     lineContext.restore();
+}
+
+/**
+ * Clears the area of a given stamp, then redraws everything but that stamp within it.
+ * Used for stamp editing to account for stamps existing under an edited stamp, otherwise there would be a big hole in the map during editing.
+ */
+export const rebuildSelectedStampArea = (editorContextRef, stamp) =>
+{
+    const stampContext = editorContextRef.current.stampContextRef.current;
+    const canvasStamps = editorContextRef.current.mapStateRef.current.stamps;
+
+    //Set up area values
+    const x = stamp.x;
+    const y = stamp.y;
+    const width = stamp.width;
+    const height = stamp.height;
+
+    //Clear area
+    stampContext.clearRect(x, y, width, height);
+
+    //Gets only stamps that are not the selected stamp, but share some area with the stamp
+    const redrawStamps = canvasStamps.filter(s => s.id !== stamp.id && stampsIntersect(stamp, s));
+
+    //Redraw area excluding stamp
+    drawStamps(redrawStamps, stampContext);
+
 }
 
 /**

@@ -1,12 +1,9 @@
 import { DeleteStampCommand } from "../classes/DeleteStampCommand";
 import { DrawStampCommand } from "../classes/DrawStampCommand";
-import { createBoundingBox, withinBox } from "./BrushUtils";
+import { createBoundingBox, rebuildSelectedStampArea, withinBox } from "./BrushUtils";
 import { MoveStampCommand } from "../classes/MoveStampCommand";
 import { ResizeStampCommand } from "../classes/ResizeStampCommand";
 import { StampDatabase } from "../stamps/StampDatabase";
-
-//TODO: When moving overlapped stamps, all stamps other than the moved stamp get temporarily partially cleared.
-//TODO: Resizing stamps deletes overlapped stamp graphics temporarily.
 
 /**
  * Executes stamp draw/deletion clicks
@@ -51,14 +48,17 @@ export function stampPointerDown(editorContextRef, guidePoint, currStamp, worldP
             interactionStateRef.current.mode = "resizing-stamp";
             interactionStateRef.current.activeStampHandle = clickedHandle;
 
-            stampContextRef.current.clearRect(stamp.x, stamp.y, stamp.width, stamp.height);
+            //Rebuilds the stamp's area without its graphics
+            rebuildSelectedStampArea(editorContextRef, stamp);
         }
 
         //Moving - Handles the stamp being clicked.
         else if (withinBox(worldPointer.x, worldPointer.y, boundingBox))
         {
             interactionStateRef.current.mode = "moving-stamp";
-            stampContextRef.current.clearRect(stamp.x, stamp.y, stamp.width, stamp.height);
+
+            //Rebuilds the stamp's area without its graphics
+            rebuildSelectedStampArea(editorContextRef, stamp);
         }
 
         //Deselction - Handles clicks that land outside of the stamps.
@@ -516,4 +516,16 @@ function calculateResizeDimensions(stamp, resizePoint, handle)
     }
 
     return {x, y, width, height, right, bottom};
+}
+
+/**
+ * Determines if any area of two stamps overlaps.
+ */
+export function stampsIntersect(stamp1, stamp2) {
+    return (
+        stamp1.x < stamp2.x + stamp2.width &&
+        stamp1.x + stamp1.width > stamp2.x &&
+        stamp1.y < stamp2.y + stamp2.height &&
+        stamp1.y + stamp1.height > stamp2.y
+    );
 }

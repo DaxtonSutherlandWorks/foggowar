@@ -9,6 +9,7 @@ import { StampDatabase } from './stamps/StampDatabase';
 
 function App() {
 
+  //Todo: Rename currStamp to better represent what it actually is.
   const [paintTool, paintToolSetter] = useState("line");
   const [currStamp, setCurrStamp] = useState(StampDatabase["tree"]);
   const [paintMode, paintModeSetter] = useState("inactive");
