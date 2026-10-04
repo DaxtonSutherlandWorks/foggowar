@@ -15,7 +15,6 @@ import MapEditorToolBar from "./MapEditorToolBar";
 import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
 
 //TODO: Lock Zoom to not go out of bounds when zooming out for small maps.
-//TODO: Stamp previews remain when leaving the canvas. -fix: clear overlay on pointerout
 //TODO: Stamp handles have too small collision
 
 //Set up as class in order to access React.createRef
@@ -173,9 +172,8 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
        overlayCanvasRef.current.removeEventListener('pointerup', onPointerUp);
        overlayCanvasRef.current.addEventListener('pointerup', onPointerUp);
 
-       //TODO: This doesn't do anything. For one, it should be pointer out. For two, moving over kids may trigger this
-       viewportRef.current.removeEventListener('pointerout', onPointerLeave);
-       viewportRef.current.addEventListener('pointerout', onPointerLeave);
+       viewportRef.current.removeEventListener('pointerleave', onPointerLeave);
+       viewportRef.current.addEventListener('pointerleave', onPointerLeave);
 
        viewportRef.current.removeEventListener('contextmenu', blockContextMenu);
        viewportRef.current.addEventListener('contextmenu', blockContextMenu);
@@ -416,7 +414,16 @@ const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaint
      */
     const onPointerLeave = (event) =>
     {
-        panPointerLeave(editorContextRef);
+        //Clears the overlay canvas of any previews
+        overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
+
+        //Fixes pointer settings if panning
+        if (interactionStateRef.current.mode === "panning")
+        {
+            interactionStateRef.current.grabbing = false;
+            viewportRef.current.style.cursor = "grab";
+        }
+
     }
 
     /**

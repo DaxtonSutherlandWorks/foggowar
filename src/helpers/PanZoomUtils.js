@@ -73,23 +73,6 @@ export function panPointerUp(editorContextRef, event)
 }
 
 /**
- * Handles the pointer leaving the canvas during panning
- */
-export function panPointerLeave(editorContextRef)
-{
-    const { interactionStateRef, viewportRef} = editorContextRef.current;
-
-    //Aborts if not actively panning
-    if (interactionStateRef.current.mode !== "panning")
-    {
-        return;
-    }
-
-    interactionStateRef.current.grabbing = false;
-    viewportRef.current.style.cursor = "grab";
-}
-
-/**
  * Handles pointer scrolling
  */
 export function zoomPointerWheel(editorContextRef, event)
