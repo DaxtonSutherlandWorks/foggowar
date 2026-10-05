@@ -118,16 +118,28 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    min-width: 0;
+    overflow: hidden;
+
     border-right: 1px solid black;
     background-color: #f9fffc;
 
-    /* Hide Initially */
+    /* Hide initially */
     transform: translateX(-100%);
     transition: transform .25s ease;
 }
 
+.stamp-overlay:not(.open) {
+    pointer-events: none;
+}
+
 .stamp-overlay.open {
     transform: translateX(0);
+}
+
+.stamp-overlay > div:nth-child(2) {
+    flex-wrap: wrap;
+    overflow: hidden;
 }
 
 .stamp-overlay-header {
@@ -148,11 +160,12 @@
 }
 
 .stamp-overlay-grid {
-    display:grid;
-    grid-template-columns:repeat(3,1fr);
-    gap:10px;
-    padding:12px;
-    overflow-y:auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px;
+    overflow-y: auto;
+    min-width: 0;
 }
 
 .stamp-grid-item{

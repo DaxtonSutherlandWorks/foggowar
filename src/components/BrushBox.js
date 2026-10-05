@@ -161,6 +161,7 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
                     <p><span>Polygon:</span> Clear or fill a polygon by placing points, ending where you started.</p>
                     <p><span>Stamp:</span> Place a stamp in an open tile.</p>
                     <p><span>Pan:</span> Drag the map to change your view.</p>
+                    <p><span>Right Click</span> during an action to cancel.</p>
                 </div>
             
                 {/* Overlays TODO: Remove if no more overlays are needed*/}
