@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import "../styles/MapEditor.css"
 import {CommandManager} from "../classes/CommandManager"
-import { nearestGuidePoint, rebuildLineCanvas, rebuildSolidCanvas, rebuildStampCanvas } from "../helpers/BrushUtils";
-import { createInitialMapState, updateDimensions } from "../helpers/MapState";
-import { applyViewportTransform, createInitialViewportState, getPointerData } from "../helpers/ViewportUtils";
+import { nearestGuidePoint} from "../helpers/BrushUtils";
+import { createInitialMapState} from "../helpers/MapState";
+import { createInitialViewportState, getPointerData } from "../helpers/ViewportUtils";
 import { linePointerDown, linePointerMove } from "../helpers/LineUtils";
 import { rectanglePointerDown, rectanglePointerMove } from "../helpers/RectUtils";
 import { circlePointerDown, circlePointerMove } from "../helpers/CircleUtils";
 import { polygonPointerDown, polygonPointerMove } from "../helpers/PolygonUtils";
 import { stampPointerDown, stampPointerMove, stampPointerUp } from "../helpers/StampUtils";
-import { panPointerDown, panPointerLeave, panPointerMove, panPointerUp, zoomPointerWheel } from "../helpers/PanZoomUtils";
-import { resizeCanvas, shiftGeometry, toolbarImport, toolbarPNGExport, toolbarRedo, toolbarSave, toolbarUndo } from "../helpers/ToolbarUtils";
+import { panPointerDown, panPointerMove, panPointerUp, zoomPointerWheel } from "../helpers/PanZoomUtils";
+import { resizeCanvas } from "../helpers/ToolbarUtils";
 import MapEditorToolBar from "./MapEditorToolBar";
-import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils";
+import { drawHoverGuide, drawInitialVisuals } from "../helpers/EditorDrawingUtils"; 
 
 //Set up as class in order to access React.createRef
-const MapEditor = ({dimensions, dimensionsSetter, paintTool, paintMode, setPaintMode, deleteMode, currStamp, setCurrStamp, stampSize, tileSize, setStampSelected}) => {
+const MapEditor = ({dimensions, paintTool, paintMode, deleteMode, currStamp, setCurrStamp, tileSize, setStampSelected}) => {
 
     //Canvas Refs
     const lineCanvasRef = useRef(null);

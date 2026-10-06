@@ -9,8 +9,7 @@ import PanIcon from "../img/panIcon.svg"
 import { getAllStamps, getStamp } from "../stamps/StampDatabase"
 import { useState } from "react"
 
-//TODO: The interface is not responsively sized now... fix me!
-const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, deleteMode, deleteModeSetter, loadStamp, currStamp, setCurrStamp, stampSelected}) => {
+const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, deleteMode, deleteModeSetter, currStamp, setCurrStamp, stampSelected}) => {
     
     const [activeMenu, setActiveMenu] = useState("brush");
 
@@ -166,7 +165,7 @@ const BrushBox = ({paintTool, paintToolSetter, paintMode, paintModeSetter, delet
             
                 {/* Overlays TODO: Remove if no more overlays are needed*/}
                 {/* Stamp Overlay */}
-                <div id="stamp-overlay" className={`stamp-overlay ${activeMenu == "stamp" ? "open" : ""}`}>
+                <div id="stamp-overlay" className={`stamp-overlay ${activeMenu === "stamp" ? "open" : ""}`}>
                     <div class="stamp-overlay-header">
                         <h3>Stamp Library</h3>
                     </div>

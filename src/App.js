@@ -1,7 +1,6 @@
-import { use, useState } from 'react';
+import { useState } from 'react';
 import './App.css';
 import BrushBox from './components/BrushBox';
-import ChatBox from './components/ChatBox';
 import MapEditor from './components/MapEditor';
 import Header from './components/Header';
 import Footer from './components/Footer';
