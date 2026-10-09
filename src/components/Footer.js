@@ -16,6 +16,38 @@ const Footer = () => {
             </div>
             <div className="update-card">
                 <div className="update-card-inner">
+                    <h1>V0.1.2 - 10/9/26</h1>
+                    <p>
+                        The third update for Foggowar has arrived, and it's a big one! Truthfully, this could have been two version's worth of additons, but I just kept climbing and climbing until I was looking behind me
+                        to see a the slope of a mighty mountain. Well, perhaps just a particularly large foot hill, but I am happy to be here all the same! This update finishes off the basics, and entirely rehauls stamps.
+                    </p>
+                    <p>
+                        Let's see what's new!
+                    </p>
+                    <h4>V0.1.2 Features:</h4>
+                    <ul>
+                        <li>Maps may now be exported to a PNG image.</li>
+                        <li>Maps may now be resized for users wanting more space or to trim them down for an export.</li>
+                        <ul>
+                            <li>Resizing has been giving its own dynamic dialogue to give user's as much info as possible about how specifically they are resizing.</li>
+                            <li>Resizing will preserve canvas content and update its positioning accordingly.</li>
+                        </ul>
+                        <li>Stamps have been entirely reworked. Originally, they were simple stickers to be added to the map and never touched beyond deletion. But now:</li>
+                        <ul>
+                            <li>The data representations for stamps have been fleshed out in preparation for future play features.</li>
+                            <li>More stamps have been added and the road for future stamp additions has been paved.</li>
+                            <li>Users may now use stamps with far less placement restrictions.</li>
+                            <li>Stamps are now fully editable! They can now be moved and resized.</li>
+                        </ul>
+                        <li>The brush box has been restyled, while the stamp tool has been broken off into its own menu to accomidate its increased functionality.</li>
+                        <li>Updated the canvas' behavior when the pointer leaves to no longer leave previews or allow for continued panning.</li>
+                        <li>Added the ability to cancel canvas actions with a right click.</li>
+                    </ul>
+                    <p>As always, if you're interested in other things I've made or just getting to know me, please visit one of my personal links above.</p>
+                </div>
+            </div>
+            <div className="update-card">
+                <div className="update-card-inner">
                     <h1>V0.1.1 - 5/11/26</h1>
                     <p>
                         The second public version of Foggowar has released, now with even more functionality! Much like my last update, I am bringing a blend of functionality and future scalability with this one. The biggest architectural theme of this update was the transition from a costly image
@@ -25,7 +57,7 @@ const Footer = () => {
                     <p>
                         Have a look at what's been added!
                     </p>
-                    <h4>V0.1.0 Features:</h4>
+                    <h4>V0.1.1 Features:</h4>
                     <ul>
                         <li>Drawing no longer rerenders the whole canvas! It never really should have, but the focus of V0.1.0 was to learn about HTML canvases and how to use them then build from there.</li>
                         <ul>

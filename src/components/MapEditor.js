@@ -495,9 +495,9 @@ const MapEditor = ({dimensions, paintTool, paintMode, deleteMode, currStamp, set
                     </div>
                 </div>
             </div>
-            <div>
+            {/*<div>
                 <button onClick={logger}>test</button>
-            </div>
+            </div>*/}
         </div>
     );
 }
