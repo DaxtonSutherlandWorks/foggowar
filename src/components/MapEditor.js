@@ -356,10 +356,22 @@ const MapEditor = ({dimensions, paintTool, paintMode, deleteMode, currStamp, set
         const guidePoint = nearestGuidePoint(pointer.world.x, pointer.world.y, tileSize, snapDistanceRef.current);
 
         //Clears the canvas of previous guide dot and preview if not selecting objects
-        if (interactionStateRef.current.mode !== "selection" && interactionStateRef.current.mode !== "selected")
+        /*
+            TODO: This is a massively inefficient hold over from the early days of this project. Each tool needs to have specific guide learing clearing functionality,
+            because this means clearing millions upon millions of pixels every time the cursor twitches on large maps. This would best be done by tracking the previous overlay's
+            bounding box, clearing on a new move, then updating tracked info. Don't forget guide dots, noted elsewhere.
+            -Panning: no clearing needed X
+            -Rectangle: Box
+            -Circle: Box
+            -Polygon: Box
+            -Stamp: Box
+        */
+        if (interactionStateRef.current.mode !== "selection" && interactionStateRef.current.mode !== "selected" && interactionStateRef.current.mode !== "panning")
         {
             overlayContextRef.current.clearRect(0, 0, overlayContextRef.current.canvas.width, overlayContextRef.current.canvas.height);
         }
+
+        //TODO: Guide dot clearing logic
 
         overlayContextRef.current.save();
 
